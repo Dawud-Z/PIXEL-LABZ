@@ -1,0 +1,3933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PIXEL LABZ - AI-Powered Image Generation</title>
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="/favicon.png">
+<script src="https://cdn.tailwindcss.com" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-auth-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-firestore-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-storage-compat.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        'sans': ['Inter', 'sans-serif'],
+      },
+      colors: {
+        primary: '#f97316', // Orange primary color
+        accent: '#ea580c',  // Darker orange accent color
+        light: '#1a1a1a',   // Dark background
+        gray: {
+          50: '#f9fafb',
+          100: '#f3f4f6',
+          200: '#e5e7eb',
+          300: '#d1d5db',
+          400: '#9ca3af',
+          500: '#6b7280',
+          600: '#4b5563',
+          700: '#374151',
+          800: '#1f2937',
+          900: '#111827',
+        }
+      },
+    }
+  }
+}
+</script>
+
+<!-- Dark/Light Mode Detection -->
+<script>
+if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.documentElement.classList.add('dark');
+}
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+    if (event.matches) {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+});
+</script>
+
+<style>
+/* Base styles */
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #374151;
+}
+::-webkit-scrollbar-thumb {
+  background: #f97316;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ea580c;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.loading-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+        
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* Image Processing Animation */
+.processing-container {
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  border-radius: 8px;
+  padding: 40px;
+  position: relative;
+  overflow: hidden;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #4b5563;
+}
+
+.processing-animation {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 30px;
+}
+
+.orbit-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  animation: rotate 8s linear infinite;
+}
+
+.orbit-element {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #f97316, #ea580c);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+}
+
+.orbit-element:nth-child(1) {
+  top: 0;
+  left: 50%;
+  margin-left: -6px;
+  animation: pulse-element 2s ease-in-out infinite;
+}
+
+.orbit-element:nth-child(2) {
+  top: 25%;
+  right: 0;
+  margin-top: -6px;
+  animation: pulse-element 2s ease-in-out infinite 0.5s;
+}
+
+.orbit-element:nth-child(3) {
+  bottom: 0;
+  left: 50%;
+  margin-left: -6px;
+  animation: pulse-element 2s ease-in-out infinite 1s;
+}
+
+.orbit-element:nth-child(4) {
+  top: 25%;
+  left: 0;
+  margin-top: -6px;
+  animation: pulse-element 2s ease-in-out infinite 1.5s;
+}
+
+.center-element {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin-top: -12px;
+  margin-left: -12px;
+  background: linear-gradient(45deg, #ea580c, #dc2626);
+  border-radius: 6px;
+  animation: center-pulse 3s ease-in-out infinite;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.4);
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-element {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
+}
+
+@keyframes center-pulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+    opacity: 1;
+  }
+}
+
+.processing-counter {
+  color: #d1d5db;
+  font-family: 'Inter', 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: right;
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: rgba(31, 41, 55, 0.9);
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #4b5563;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+/* Image preview container */
+#preview-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+}
+
+/* File input styling */
+.file-input-wrapper {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+.file-input-wrapper input[type="file"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+/* Image preview container */
+.image-preview-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Delete button for uploaded image */
+.delete-image-btn {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background-color: #f97316;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  z-index: 10;
+  border: 2px solid #1a1a1a;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Modal styles */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  background-color: #1f2937;
+  border-radius: 0.5rem;
+  max-width: 90%;
+  width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid #4b5563;
+}
+
+/* Password strength indicator */
+.password-strength {
+  height: 5px;
+  margin-top: 5px;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.strength-weak {
+  background-color: #ef4444;
+  width: 30%;
+}
+
+.strength-medium {
+  background-color: #f59e0b;
+  width: 60%;
+}
+
+.strength-strong {
+  background-color: #10b981;
+  width: 100%;
+}
+
+/* Custom select dropdown */
+.custom-select-wrapper {
+  position: relative;
+  user-select: none;
+  width: 100%;
+}
+
+.custom-select {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-select__trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: white;
+  background-color: #f97316;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  border: 1px solid #f97316;
+}
+
+.custom-select__trigger:hover {
+  background-color: #ea580c;
+}
+
+.custom-select__icon {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  transition: transform 0.3s ease;
+}
+
+.custom-select__icon path {
+  stroke: white;
+}
+
+.custom-options {
+  position: absolute;
+  display: block;
+  top: 100%;
+  left: 0;
+  right: 0;
+  border: 1px solid #f97316;
+  border-top: 0;
+  background-color: #1f2937;
+  font-weight: 500;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 20;
+  border-bottom-left-radius: 0.375rem;
+  border-bottom-right-radius: 0.375rem;
+  margin-top: 0px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  transform: translateY(-10px);
+  transition: all 0.2s ease-in-out;
+}
+
+.custom-select.open .custom-options {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: all;
+  transform: translateY(0);
+}
+
+.custom-select.open .custom-select__icon {
+  transform: rotate(180deg);
+}
+
+.custom-option {
+  position: relative;
+  display: block;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.custom-option:hover {
+  background-color: #374151;
+}
+
+.custom-option.selected {
+  background-color: #374151;
+  font-weight: 600;
+}
+
+/* Orange shadow for interactive elements */
+.orange-shadow {
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.1);
+}
+
+/* Google sign-in button styles */
+.google-signin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1f2937;
+  color: #d1d5db;
+  border-radius: 4px;
+  padding: 10px 16px;
+  font-family: 'Roboto', Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  width: 100%;
+  border: 1px solid #4b5563;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.google-signin-btn:hover {
+  background-color: #374151;
+}
+
+.google-signin-btn img {
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255,255,255,.1);
+  border-radius: 50%;
+  border-top-color: #f97316;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* User profile dropdown menu */
+.profile-dropdown {
+  position: relative;
+}
+
+.profile-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  transform-origin: top right;
+  transform: scale(0.95);
+  width: 270px;
+  margin-top: 0.5rem;
+  background-color: #1f2937;
+  border-radius: 0.5rem;
+  padding: 0.75rem 0;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
+  z-index: 50;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  border: 1px solid #4b5563;
+}
+
+.profile-dropdown-menu.active {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.profile-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  color: #ffffff;
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+
+.profile-dropdown-item:hover {
+  background-color: #374151;
+}
+
+.profile-dropdown-item svg {
+  margin-right: 0.75rem;
+}
+
+.profile-dropdown-divider {
+  height: 1px;
+  margin: 0.5rem 0;
+  background-color: #4b5563;
+}
+
+.profile-dropdown-header {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #4b5563;
+  margin-bottom: 0.5rem;
+}
+
+.profile-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  cursor: pointer;
+  overflow: hidden;
+  border: 2px solid #f97316;
+  transition: border-color 0.2s ease;
+}
+
+.profile-avatar:hover {
+  border-color: #ea580c;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-initials {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f97316;
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* AI generation logs */
+#ai-logs {
+  background-color: #1f2937;
+  border: 1px solid #4b5563;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  height: 150px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 0.875rem;
+  margin-top: 1rem;
+  transition: height 0.3s ease;
+}
+
+#ai-logs.expanded {
+  height: 300px;
+}
+
+.log-line {
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.log-time {
+  color: #f59e0b;
+  margin-right: 0.5rem;
+}
+
+.log-info {
+  color: #10b981;
+}
+
+.log-warn {
+  color: #f59e0b;
+}
+
+.log-error {
+  color: #ef4444;
+}
+
+.log-success {
+  color: #10b981;
+}
+
+.logo-container {
+  width: 60px;
+  height: 60px;
+  overflow: hidden;
+  border-radius: 50%;
+  margin-right: 12px;
+  border: 2px solid #f97316;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1a1a1a;
+}
+
+.logo-container img {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+}
+
+.button-orange {
+  background-color: #f97316;
+  color: #fff;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.button-orange:hover {
+  background-color: #ea580c;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(249, 115, 22, 0.2);
+}
+
+.feature-card {
+  background-color: #1f2937;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  border: 1px solid #4b5563;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(249, 115, 22, 0.2);
+  border-color: #f97316;
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, #1f1f1f 0%, #0f0f0f 50%, #1f1f1f 100%);
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, #f97316, #ea580c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Rating stars */
+.star-rating {
+  display: flex;
+  justify-content: center;
+  margin: 15px 0;
+}
+
+.star {
+  font-size: 2rem;
+  color: #4b5563;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.star:hover, .star.active {
+  color: #f59e0b;
+}
+
+.loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  top: 50%;
+  left: 50%;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: button-loading-spinner 1s linear infinite;
+}
+
+@keyframes button-loading-spinner {
+  from {
+    transform: rotate(0turn);
+  }
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* Generated image display */
+.generated-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Image container */
+.image-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  border-radius: 0.5rem;
+}
+
+/* Header scroll behavior */
+.header-hidden {
+  transform: translateY(-100%);
+}
+
+.header-visible {
+  transform: translateY(0);
+}
+</style>
+
+<!-- How It Works diagram styles -->
+<style>
+    .diagram-container {
+        width: 1200px;
+        height: 800px;
+        background: #1f2937;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        padding: 40px;
+        position: relative;
+        overflow: hidden;
+        box-sizing: border-box;
+        border: 1px solid #4b5563;
+    }
+    .title {
+        text-align: center;
+        font-size: 28px;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 40px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    .flow-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+        gap: 20px;
+        height: 640px;
+        position: relative;
+    }
+    .step-box {
+        background: #374151;
+        border: 2px solid #4b5563;
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        position: relative;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .step-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(249, 115, 22, 0.15);
+        border-color: #f97316;
+    }
+    .step-number {
+        position: absolute;
+        top: -12px;
+        left: 20px;
+        background: #f97316;
+        color: white;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .step-icon {
+        font-size: 32px;
+        margin-bottom: 15px;
+    }
+    .step-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #ffffff;
+        margin-bottom: 10px;
+        line-height: 1.2;
+    }
+    .step-description {
+        font-size: 13px;
+        color: #d1d5db;
+        line-height: 1.4;
+    }
+    /* Grid positioning */
+    .step-1 {
+        grid-column: 1;
+        grid-row: 1;
+        background: #1f2937;
+        border-color: #6b7280;
+    }
+    .step-2 {
+        grid-column: 2;
+        grid-row: 1;
+        background: #f97316;
+        color: white;
+        border-color: #ea580c;
+    }
+    .step-3 {
+        grid-column: 3;
+        grid-row: 1;
+        background: #374151;
+        border-color: #9ca3af;
+    }
+    .step-4 {
+        grid-column: 3;
+        grid-row: 2;
+        background: #1f2937;
+        border-color: #6b7280;
+    }
+    .step-5 {
+        grid-column: 3;
+        grid-row: 3;
+        background: #374151;
+        border-color: #9ca3af;
+    }
+    .step-6 {
+        grid-column: 2;
+        grid-row: 3;
+        background: #1f2937;
+        border-color: #6b7280;
+    }
+    .step-7 {
+        grid-column: 1;
+        grid-row: 3;
+        background: #f97316;
+        color: white;
+        border-color: #ea580c;
+    }
+    .step-8 {
+        grid-column: 1;
+        grid-row: 2;
+        background: #ea580c;
+        color: white;
+        border-color: #dc2626;
+    }
+    .step-2 .step-title,
+    .step-2 .step-description,
+    .step-7 .step-title,
+    .step-7 .step-description,
+    .step-8 .step-title,
+    .step-8 .step-description {
+        color: white;
+    }
+    
+    /* PIXEL LABZ Text Styles */
+    .pixel-text {
+        font-size: 2.2rem;
+        font-weight: bold;
+        color: #f0f0f0;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        letter-spacing: 3px;
+        background: linear-gradient(45deg, #ffffff, #cccccc, #ffffff);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: none;
+        transform-style: preserve-3d;
+        perspective: 1000px;
+        display: inline-block;
+        white-space: nowrap;
+    }
+
+    .pixel-text::before {
+        content: 'PIXEL LABZ';
+        position: absolute;
+        top: 0;
+        left: 0;
+        color: #666;
+        transform: translateZ(-20px) translateX(2px) translateY(2px);
+        -webkit-text-fill-color: #666;
+        background: none;
+        z-index: -1;
+    }
+
+    .pixel-text::after {
+        content: 'PIXEL LABZ';
+        position: absolute;
+        top: 0;
+        left: 0;
+        color: #888;
+        transform: translateZ(-10px) translateX(1px) translateY(1px);
+        -webkit-text-fill-color: #888;
+        background: none;
+        z-index: -1;
+    }
+
+    .pixel-text:hover {
+        background: linear-gradient(45deg, #f97316, #ea580c, #f97316);
+        background-clip: text;
+        -webkit-background-clip: text;
+        transform: scale(1.1) rotateX(15deg) rotateY(-10deg);
+        filter: drop-shadow(0 0 20px rgba(249, 115, 22, 0.8));
+    }
+
+    .pixel-text:hover::before {
+        transform: translateZ(-30px) translateX(3px) translateY(3px);
+        color: #444;
+        -webkit-text-fill-color: #444;
+    }
+
+    .pixel-text:hover::after {
+        transform: translateZ(-20px) translateX(2px) translateY(2px);
+        color: #666;
+        -webkit-text-fill-color: #666;
+    }
+
+    .particles {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .particle {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background: #f97316;
+        border-radius: 50%;
+        opacity: 0;
+        animation: float 3s infinite ease-in-out;
+    }
+
+    @keyframes float {
+        0%, 100% {
+            opacity: 0;
+            transform: translateY(0px);
+        }
+        50% {
+            opacity: 1;
+            transform: translateY(-20px);
+        }
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.05);
+            opacity: 0.8;
+        }
+    }
+    
+    /* Center container for PIXEL LABZ text */
+    .pixel-center {
+        grid-column: 2;
+        grid-row: 2;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        z-index: 10;
+        white-space: nowrap;
+    }
+</style>
+</head>
+<body class="bg-gray-900 text-white">
+<div class="min-h-screen flex flex-col">
+
+<!-- Auth modals -->
+<div id="login-modal" class="modal">
+<div class="modal-content p-6">
+<h2 class="text-xl font-semibold mb-4 text-white">Login to PIXEL LABZ</h2>
+
+<!-- Google Sign-In Button -->
+<div class="mb-4">
+  <button id="google-signin-btn" class="google-signin-btn border border-gray-600">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 48 48">
+      <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
+      <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
+      <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
+      <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
+    </svg>
+    <span id="google-signin-text">Sign in with Google</span>
+    <span id="google-signin-loading" class="loading-spinner hidden"></span>
+  </button>
+</div>
+
+<div class="flex items-center my-4">
+  <hr class="flex-1 border-gray-600">
+  <div class="px-3 text-sm text-gray-400">OR</div>
+  <hr class="flex-1 border-gray-600">
+</div>
+
+<form id="login-form" class="space-y-4">
+<div>
+<label for="login-email" class="block text-sm font-medium mb-1 text-gray-300">Email</label>
+<input type="email" id="login-email" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+</div>
+<div>
+<label for="login-password" class="block text-sm font-medium mb-1 text-gray-300">Password</label>
+<input type="password" id="login-password" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+</div>
+<div class="text-right">
+  <button type="button" id="forgot-password-btn" class="text-sm text-orange-400 hover:text-orange-300 transition-colors">Forgot password?</button>
+</div>
+<div id="login-error" class="text-red-500 text-sm hidden"></div>
+<div class="flex justify-between">
+<button type="submit" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Login</button>
+<button type="button" id="go-to-signup" class="px-4 py-2 text-orange-400 hover:text-orange-300 transition-colors">Sign Up</button>
+</div>
+</form>
+</div>
+</div>
+
+<div id="signup-modal" class="modal">
+<div class="modal-content p-6">
+<h2 class="text-xl font-semibold mb-4 text-white">Create an Account</h2>
+
+<!-- Google Sign-In Button for signup -->
+<div class="mb-4">
+  <button id="google-signup-btn" class="google-signin-btn border border-gray-600">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 48 48">
+      <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
+      <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
+      <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
+      <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
+    </svg>
+    <span id="google-signup-text">Sign up with Google</span>
+    <span id="google-signup-loading" class="loading-spinner hidden"></span>
+  </button>
+</div>
+
+<div class="flex items-center my-4">
+  <hr class="flex-1 border-gray-600">
+  <div class="px-3 text-sm text-gray-400">OR</div>
+  <hr class="flex-1 border-gray-600">
+</div>
+
+<form id="signup-form" class="space-y-4">
+<!-- Profile Picture Upload -->
+<div class="flex justify-center mb-2">
+  <div class="relative inline-block">
+    <div id="profile-pic-preview" class="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center cursor-pointer overflow-hidden border-2 border-orange-500">
+      <!-- Default avatar shown until an image is uploaded -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+      <img id="profile-pic-img" class="absolute inset-0 w-full h-full object-cover hidden" src="" alt="Profile picture">
+    </div>
+    <div class="absolute bottom-0 right-0 bg-orange-500 rounded-full p-1 cursor-pointer">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    </div>
+    <input type="file" id="profile-pic-upload" class="hidden" accept="image/*">
+    <p class="text-xs text-center text-gray-400 mt-1">Optional Profile Picture</p>
+  </div>
+</div>
+
+<!-- Full Name Field -->
+<div>
+  <label for="signup-fullname" class="block text-sm font-medium mb-1 text-gray-300">Full Name</label>
+  <input type="text" id="signup-fullname" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+</div>
+
+<!-- Email Field -->
+<div>
+<label for="signup-email" class="block text-sm font-medium mb-1 text-gray-300">Email</label>
+<input type="email" id="signup-email" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+</div>
+
+<!-- Password Field -->
+<div>
+<label for="signup-password" class="block text-sm font-medium mb-1 text-gray-300">Password</label>
+<input type="password" id="signup-password" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required minlength="6">
+<div id="password-strength" class="password-strength"></div>
+<p class="text-xs text-gray-400 mt-1">Password must be at least 6 characters with numbers and special characters</p>
+</div>
+
+<!-- Confirm Password Field -->
+<div>
+<label for="signup-confirm-password" class="block text-sm font-medium mb-1 text-gray-300">Confirm Password</label>
+<input type="password" id="signup-confirm-password" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+</div>
+<div id="signup-error" class="text-red-500 text-sm hidden"></div>
+<div class="flex justify-between">
+<button type="submit" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Sign Up</button>
+<button type="button" id="go-to-login" class="px-4 py-2 text-orange-400 hover:text-orange-300 transition-colors">Login Instead</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- Reset Password Modal -->
+<div id="reset-password-modal" class="modal">
+<div class="modal-content p-6">
+<h2 class="text-xl font-semibold mb-4 text-white">Reset Password</h2>
+<p class="text-gray-300 mb-4">Enter your email address below and we'll send you a link to reset your password.</p>
+<form id="reset-password-form" class="space-y-4">
+<div>
+<label for="reset-email" class="block text-sm font-medium mb-1 text-gray-300">Email</label>
+<input type="email" id="reset-email" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+</div>
+<div id="reset-password-error" class="text-red-500 text-sm hidden"></div>
+<div id="reset-password-success" class="text-green-500 text-sm hidden"></div>
+<div class="flex justify-between">
+<button type="submit" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Send Reset Link</button>
+<button type="button" id="cancel-reset-password" class="px-4 py-2 text-orange-400 hover:text-orange-300 transition-colors">Cancel</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- Edit Account Modal -->
+<div id="edit-account-modal" class="modal">
+<div class="modal-content p-6">
+<h2 class="text-xl font-semibold mb-4 text-white">Edit Account Details</h2>
+<form id="edit-account-form" class="space-y-4">
+<!-- Profile Picture Upload -->
+<div class="flex justify-center mb-2">
+  <div class="relative inline-block">
+    <div id="edit-profile-pic-preview" class="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center cursor-pointer overflow-hidden border-2 border-orange-500">
+      <!-- Default avatar shown until an image is uploaded -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+      <img id="edit-profile-pic-img" class="absolute inset-0 w-full h-full object-cover hidden" src="" alt="Profile picture">
+    </div>
+    <div class="absolute bottom-0 right-0 bg-orange-500 rounded-full p-1 cursor-pointer">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    </div>
+    <input type="file" id="edit-profile-pic-upload" class="hidden" accept="image/*">
+  </div>
+</div>
+
+<!-- Full Name Field -->
+<div>
+  <label for="edit-fullname" class="block text-sm font-medium mb-1 text-gray-300">Full Name</label>
+  <input type="text" id="edit-fullname" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+</div>
+
+<div id="edit-account-error" class="text-red-500 text-sm hidden"></div>
+<div id="edit-account-success" class="text-green-500 text-sm hidden"></div>
+<div class="flex justify-between">
+<button type="submit" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Save Changes</button>
+<button type="button" id="cancel-edit-account" class="px-4 py-2 text-orange-400 hover:text-orange-300 transition-colors">Cancel</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- Change Password Modal -->
+<div id="change-password-modal" class="modal">
+<div class="modal-content p-6">
+<h2 class="text-xl font-semibold mb-4 text-white">Change Password</h2>
+<form id="change-password-form" class="space-y-4">
+<div>
+<label for="current-password" class="block text-sm font-medium mb-1 text-gray-300">Current Password</label>
+<input type="password" id="current-password" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+</div>
+<div>
+<label for="new-password" class="block text-sm font-medium mb-1 text-gray-300">New Password</label>
+<input type="password" id="new-password" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required minlength="6">
+<div id="new-password-strength" class="password-strength"></div>
+</div>
+<div>
+<label for="confirm-new-password" class="block text-sm font-medium mb-1 text-gray-300">Confirm New Password</label>
+<input type="password" id="confirm-new-password" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" required>
+</div>
+<div id="change-password-error" class="text-red-500 text-sm hidden"></div>
+<div id="change-password-success" class="text-green-500 text-sm hidden"></div>
+<div class="flex justify-between">
+<button type="submit" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Change Password</button>
+<button type="button" id="cancel-change-password" class="px-4 py-2 text-orange-400 hover:text-orange-300 transition-colors">Cancel</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- Out of tokens modal -->
+<div id="out-of-tokens-modal" class="modal">
+<div class="modal-content p-6">
+<h2 class="text-xl font-semibold mb-4 text-white">Out of Tokens</h2>
+<p class="mb-4 text-gray-300">You have run out of tokens. Purchase more tokens to continue generating images.</p>
+<div class="flex flex-col space-y-3">
+<button id="buy-more-tokens-btn" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Buy More Tokens</button>
+<button id="out-of-tokens-close" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors">Close</button>
+</div>
+</div>
+</div>
+
+<!-- Custom alert modal -->
+<div id="alert-modal" class="modal">
+<div class="modal-content p-6">
+<h2 id="alert-title" class="text-xl font-semibold mb-4 text-white">Alert</h2>
+<p id="alert-message" class="mb-4 text-gray-300"></p>
+<div class="flex justify-end">
+<button id="alert-close" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">OK</button>
+</div>
+</div>
+</div>
+
+<!-- Rating modal -->
+<div id="rating-modal" class="modal">
+<div class="modal-content p-6">
+<h2 class="text-xl font-semibold mb-4 text-white">Rate Your Experience</h2>
+<p class="text-gray-300 mb-4">How would you rate your experience with PIXEL LABZ?</p>
+<div class="star-rating">
+  <div class="star" data-value="1">★</div>
+  <div class="star" data-value="2">★</div>
+  <div class="star" data-value="3">★</div>
+  <div class="star" data-value="4">★</div>
+  <div class="star" data-value="5">★</div>
+</div>
+<div class="mt-4">
+  <label for="rating-feedback" class="block text-sm font-medium mb-1 text-gray-300">Feedback (optional)</label>
+  <textarea id="rating-feedback" rows="3" class="text-base w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Tell us what you think..."></textarea>
+</div>
+<div class="flex justify-between mt-6">
+<button id="rating-submit" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Submit Rating</button>
+<button id="rating-close" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors">Maybe Later</button>
+</div>
+</div>
+</div>
+
+<!-- Header -->
+<header class="fixed w-full bg-black/90 backdrop-blur-md z-50 shadow-lg border-b border-orange-500/30 transition-transform duration-300 header-visible" id="mainHeader">
+<div class="container mx-auto px-4 py-3 flex justify-between items-center">
+<div class="flex items-center space-x-1">
+  <div class="logo-container">
+    <img src="favicon.png" alt="PIXEL LABZ" style="width: 80%; height: 80%; object-fit: contain; margin: 10%;">
+  </div>
+  <div class="text-white font-bold text-2xl" style="font-family: 'Poppins', 'Inter', sans-serif; letter-spacing: 1px;">
+  PIXEL <span style="color: #f97316; background: rgba(249, 115, 22, 0.1); padding: 2px 10px; border-radius: 3px;">LABZ</span>
+</div>
+</div>
+
+<div class="flex items-center">
+<!-- Navigation -->
+<nav class="hidden md:flex items-center space-x-4 mr-8">
+<button id="app-btn" class="px-3 py-1 rounded-md text-white bg-orange-500 hover:bg-orange-600 transition-colors">App</button>
+<button id="dashboard-btn" class="px-3 py-1 rounded-md text-gray-300 hover:bg-gray-700 transition-colors">Dashboard</button>
+<button id="howitworks-btn" class="px-3 py-1 rounded-md text-gray-300 hover:bg-gray-700 transition-colors">How It Works</button>
+<button id="pricing-btn" class="px-3 py-1 rounded-md text-gray-300 hover:bg-gray-700 transition-colors">Pricing</button>
+<button id="help-btn" class="px-3 py-1 rounded-md text-gray-300 hover:bg-gray-700 transition-colors">Help</button>
+</nav>
+
+<!-- User info/login area -->
+<div id="user-area" class="flex items-center space-x-4">
+<div id="logged-out-state" class="flex space-x-2">
+<button id="login-btn" class="px-3 py-1 rounded-md text-gray-300 border border-gray-600 hover:bg-gray-700 transition-colors">Login</button>
+<button id="signup-btn" class="px-3 py-1 rounded-md text-white bg-orange-500 hover:bg-orange-600 transition-colors">Sign Up</button>
+</div>
+<div id="logged-in-state" class="hidden flex items-center space-x-2">
+<div class="profile-dropdown">
+  <div id="profile-avatar" class="profile-avatar">
+    <!-- Profile image or initials will be inserted here via JavaScript -->
+  </div>
+  <!-- User profile dropdown menu -->
+  <div id="profile-dropdown-menu" class="profile-dropdown-menu">
+    <div class="profile-dropdown-header">
+      <div class="text-sm font-medium text-white truncate" id="dropdown-user-name">User Name</div>
+      <div class="text-xs text-gray-400 truncate" id="dropdown-user-email">user@example.com</div>
+    </div>
+    <a href="#" class="profile-dropdown-item" id="edit-account-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+      </svg>
+      Edit Profile
+    </a>
+    <a href="#" class="profile-dropdown-item" id="change-password-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+      </svg>
+      Change Password
+    </a>
+    <a href="#" class="profile-dropdown-item" id="view-dashboard-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+      My Dashboard
+    </a>
+    <a href="#" class="profile-dropdown-item" id="view-subscription-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+      My Subscription
+    </a>
+    <div class="profile-dropdown-divider"></div>
+    <a href="#" class="profile-dropdown-item" id="help-support-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      Help & Support
+    </a>
+    <div class="profile-dropdown-divider"></div>
+    <a href="#" class="profile-dropdown-item" id="dropdown-logout-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+      </svg>
+      Sign Out
+    </a>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="md:hidden flex items-center">
+<button id="mobile-menu-btn" class="text-white p-2">
+<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+</svg>
+</button>
+</div>
+</div>
+<!-- Mobile menu -->
+<div id="mobile-menu" class="hidden md:hidden bg-gray-900 border-b border-gray-700">
+<div class="px-4 py-2 space-y-2">
+<button id="mobile-app-btn" class="block w-full text-left px-3 py-2 rounded-md text-white bg-orange-500 hover:bg-orange-600 transition-colors">App</button>
+<button id="mobile-dashboard-btn" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:bg-gray-700 transition-colors">Dashboard</button>
+<button id="mobile-howitworks-btn" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:bg-gray-700 transition-colors">How It Works</button>
+<button id="mobile-pricing-btn" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:bg-gray-700 transition-colors">Pricing</button>
+<button id="mobile-help-btn" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:bg-gray-700 transition-colors">Help</button>
+</div>
+</div>
+</header>
+
+<!-- Main content area -->
+<main class="flex-grow container mx-auto px-4 py-6 pt-20">
+<!-- Login Required Banner -->
+<div id="login-required-banner" class="mb-6 bg-gray-800 p-4 rounded-lg border border-gray-600 shadow-sm">
+<div class="flex flex-col sm:flex-row items-center justify-between">
+<div class="mb-4 sm:mb-0">
+<h3 class="text-lg font-medium text-white">Sign in to create images</h3>
+<p class="text-gray-300">New users get 10 free tokens to start</p>
+</div>
+<div class="flex space-x-3">
+<button id="banner-login-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors">Login</button>
+<button id="banner-signup-btn" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Sign Up</button>
+</div>
+</div>
+</div>
+
+<!-- Image Generation Studio Title -->
+<div class="text-center mb-8">
+  <div class="inline-block bg-gray-800 px-8 py-4 rounded-lg shadow-sm border border-gray-600">
+    <h1 class="text-3xl font-bold text-white" style="font-family: 'Poppins', 'Inter', sans-serif;">
+      IMAGE GENERATION <span style="color: #f97316;">STUDIO</span>
+    </h1>
+  </div>
+</div>
+
+<!-- App section -->
+<section id="app-section" class="space-y-6">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Left panel: Input controls -->
+<div class="bg-gray-800 p-6 rounded-lg border border-gray-600 shadow-sm">
+<h2 class="text-xl font-semibold mb-4 text-white">Create Image</h2>
+
+<!-- Text description input -->
+<div class="mb-4">
+<label for="description" class="block text-sm font-medium mb-2 text-gray-300">Image Description</label>
+<textarea id="description" rows="4" class="text-base w-full px-3 py-2 bg-gray-700 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Describe the image you want to create (e.g. 'A majestic dragon flying over a medieval castle at sunset')..."></textarea>
+</div>
+
+<!-- Style Settings -->
+<div class="mb-4">
+<label class="block text-sm font-medium mb-2 text-gray-300">Art Style</label>
+<div class="custom-select-wrapper">
+  <div class="custom-select">
+    <div class="custom-select__trigger">
+      <span id="selected-style">Realistic</span>
+      <div class="custom-select__icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </div>
+    </div>
+    <div class="custom-options">
+      <span class="custom-option selected" data-value="realistic">Realistic</span>
+      <span class="custom-option" data-value="artistic">Artistic</span>
+      <span class="custom-option" data-value="anime">Anime</span>
+      <span class="custom-option" data-value="cartoon">Cartoon</span>
+      <span class="custom-option" data-value="digital-art">Digital Art</span>
+      <span class="custom-option" data-value="oil-painting">Oil Painting</span>
+    </div>
+  </div>
+  <input type="hidden" id="art-style" name="art-style" value="realistic">
+</div>
+</div>
+
+<!-- Aspect Ratio -->
+<div class="mb-4">
+<label class="block text-sm font-medium mb-2 text-gray-300">Aspect Ratio</label>
+<div class="custom-select-wrapper">
+  <div class="custom-select">
+    <div class="custom-select__trigger">
+      <span id="selected-aspect">1:1 (Square)</span>
+      <div class="custom-select__icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </div>
+    </div>
+    <div class="custom-options">
+      <span class="custom-option selected" data-value="1:1">1:1 (Square)</span>
+      <span class="custom-option" data-value="16:9">16:9 (Landscape)</span>
+      <span class="custom-option" data-value="9:16">9:16 (Portrait)</span>
+      <span class="custom-option" data-value="4:3">4:3 (Standard)</span>
+      <span class="custom-option" data-value="3:2">3:2 (Photo)</span>
+    </div>
+  </div>
+  <input type="hidden" id="aspect-ratio" name="aspect-ratio" value="1:1">
+</div>
+</div>
+
+<!-- Quality Settings -->
+<div class="mb-4">
+<label class="block text-sm font-medium mb-2 text-gray-300">Quality Level</label>
+<div class="custom-select-wrapper">
+  <div class="custom-select">
+    <div class="custom-select__trigger">
+      <span id="selected-quality">High Quality</span>
+      <div class="custom-select__icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </div>
+    </div>
+    <div class="custom-options">
+      <span class="custom-option" data-value="medium">Medium Quality</span>
+      <span class="custom-option selected" data-value="high">High Quality</span>
+      <span class="custom-option" data-value="low">Low Quality (Fast)</span>
+    </div>
+  </div>
+  <input type="hidden" id="quality-level" name="quality-level" value="high">
+</div>
+</div>
+
+<!-- Generate button and token counter -->
+<div class="flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
+  <div class="flex space-x-2">
+    <button id="generate-btn" class="px-5 py-3 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-md transition-colors button-orange">
+      <span id="generate-text">Generate Image</span>
+      <span id="generating-text" class="hidden">
+        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Processing...
+      </span>
+    </button>
+  </div>
+  <div class="bg-gray-700 px-3 py-2 rounded-md text-sm flex items-center">
+    <span class="mr-2 text-gray-300">Tokens remaining:</span>
+    <span id="token-count" class="font-bold text-orange-400">-</span>
+  </div>
+</div>
+
+<!-- AI Generation Logs -->
+<div id="ai-logs" class="mt-4">
+  <div class="flex justify-between items-center mb-2">
+    <span class="text-sm font-medium text-gray-300">AI Generation Logs</span>
+    <button id="toggle-logs-btn" class="text-xs text-orange-400 hover:text-orange-300 transition-colors">Expand</button>
+  </div>
+  <div id="logs-content"></div>
+</div>
+</div>
+
+<!-- Right panel: Image preview -->
+<div class="bg-gray-800 p-6 rounded-lg border border-gray-600 shadow-sm h-full">
+<h2 class="text-xl font-semibold mb-4 text-white">Image Preview</h2>
+<div id="preview-container" class="w-full h-64 md:h-96 bg-gray-700 flex items-center justify-center">
+<div id="initial-state" class="text-center p-6">
+<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+</svg>
+<p class="text-gray-400">Enter a description to generate an image</p>
+</div>
+<div id="loading-state" class="hidden processing-container">
+<div class="processing-animation">
+<div class="orbit-container">
+<div class="orbit-element"></div>
+<div class="orbit-element"></div>
+<div class="orbit-element"></div>
+<div class="orbit-element"></div>
+</div>
+<div class="center-element"></div>
+</div>
+<p class="text-gray-300 text-center mb-4 font-medium">AI is generating your image</p>
+<div class="processing-counter" id="processing-counter">
+processing | 0.0/30s
+</div>
+</div>
+<div id="image-container" class="hidden w-full h-full image-container">
+<img id="generated-image" class="generated-image" src="" alt="Generated image">
+</div>
+</div>
+
+<!-- Download options - initially hidden -->
+<div id="download-options" class="mt-4 hidden">
+<div class="flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-3">
+<button id="download-btn" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors flex items-center justify-center">
+<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+</svg>
+Download Image
+</button>
+<button id="reset-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors">
+Generate New Image
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Dashboard section - initially hidden -->
+<section id="dashboard-section" class="hidden space-y-6">
+<div class="bg-gray-800 p-6 rounded-lg border border-gray-600 shadow-sm">
+<h2 class="text-2xl font-semibold mb-6 text-white">User Dashboard</h2>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+<div class="bg-gray-700 p-4 rounded-lg shadow-sm">
+<h3 class="text-lg font-medium mb-2 text-white">Tokens</h3>
+<div class="flex justify-between items-end">
+<div class="text-3xl font-bold text-orange-400" id="dashboard-token-count">-</div>
+<button id="buy-tokens-btn" class="text-sm px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Buy More</button>
+</div>
+</div>
+
+<div class="bg-gray-700 p-4 rounded-lg shadow-sm">
+<h3 class="text-lg font-medium mb-2 text-white">Subscription</h3>
+<div class="flex justify-between items-end">
+<div id="subscription-tier" class="text-xl font-bold text-gray-300">Free Tier</div>
+<button id="upgrade-btn" class="text-sm px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Upgrade</button>
+</div>
+</div>
+
+<div class="bg-gray-700 p-4 rounded-lg shadow-sm">
+<h3 class="text-lg font-medium mb-2 text-white">Images Created</h3>
+<div id="images-created-count" class="text-3xl font-bold text-gray-300">0</div>
+</div>
+</div>
+
+<div class="bg-gray-800 p-4 rounded-lg border border-gray-600 shadow-sm">
+<h3 class="text-lg font-medium mb-4 text-white">Recent Images</h3>
+<div id="recent-images-empty" class="text-center text-gray-400 py-8">
+<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+</svg>
+<p>You haven't created any images yet</p>
+<button id="create-first-image" class="mt-4 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Create Your First Image</button>
+</div>
+<div id="recent-images-list" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<!-- Images will be added here dynamically -->
+</div>
+</div>
+</div>
+</section>
+
+<!-- Pricing section - initially hidden -->
+<section id="pricing-section" class="hidden space-y-6">
+<div class="bg-gray-800 p-6 rounded-lg border border-gray-600 shadow-sm">
+<h2 class="text-2xl font-semibold mb-2 text-white">Subscription Plans</h2>
+<p class="text-gray-300 mb-6">Choose the plan that works best for you</p>
+
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<!-- Free Package -->
+<div class="bg-gray-700 rounded-lg overflow-hidden border-2 border-orange-500">
+<div class="p-6">
+<h3 class="text-xl font-bold mb-2 text-white">Free Package</h3>
+<div class="mb-4">
+<span class="text-3xl font-bold text-white">$0</span>
+<span class="text-gray-400">/month</span>
+</div>
+<ul class="space-y-2 mb-6">
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">10 free tokens</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">Standard resolution images</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">Basic art styles</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">Community support</span>
+</li>
+</ul>
+<button id="free-plan-btn" data-plan="free" data-checkout-id="" class="w-full py-2 bg-orange-500 text-white rounded-md transition-colors cursor-default">
+  Subscribe
+</button>
+</div>
+</div>
+
+<!-- Basic Package -->
+<div class="bg-gray-700 rounded-lg overflow-hidden border-2 border-orange-500">
+<div class="p-6">
+<h3 class="text-xl font-bold mb-2 text-white">Basic Package</h3>
+<div class="mb-4">
+<span class="text-3xl font-bold text-white">$2.99</span>
+<span class="text-gray-400">/month</span>
+</div>
+<ul class="space-y-2 mb-6">
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">50 tokens per month</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">High resolution images</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">All art styles</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">Email support</span>
+</li>
+</ul>
+<button id="basic-plan-btn" data-plan="basic" data-checkout-id="STRIPE_BASIC_CHECKOUT_ID" class="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn">
+  Subscribe
+</button>
+</div>
+</div>
+
+<!-- Silver Package -->
+<div class="bg-gray-700 rounded-lg overflow-hidden border-2 border-orange-500 relative">
+<div class="absolute top-0 right-0 bg-orange-500 text-white px-4 py-1 text-sm font-bold">
+POPULAR
+</div>
+<div class="p-6">
+<h3 class="text-xl font-bold mb-2 text-white">Silver Package</h3>
+<div class="mb-4">
+<span class="text-3xl font-bold text-white">$5.99</span>
+<span class="text-gray-400">/month</span>
+</div>
+<ul class="space-y-2 mb-6">
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">200 tokens per month</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">Ultra-high resolution</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">Advanced art styles</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">Priority support</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">Custom aspect ratios</span>
+</li>
+</ul>
+<button id="silver-plan-btn" data-plan="silver" data-checkout-id="STRIPE_SILVER_CHECKOUT_ID" class="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn">
+  Subscribe
+</button>
+</div>
+</div>
+
+<!-- Gold Package -->
+<div class="bg-gray-700 rounded-lg overflow-hidden border-2 border-orange-500">
+<div class="p-6">
+<h3 class="text-xl font-bold mb-2 text-white">Gold Package</h3>
+<div class="mb-4">
+<span class="text-3xl font-bold text-white">$17.99</span>
+<span class="text-gray-400">/month</span>
+</div>
+<ul class="space-y-2 mb-6">
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">1,000 tokens a month</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">Maximum resolution</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">All art styles & premium ones</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">24/7 dedicated support</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">Advanced editing tools</span>
+</li>
+<li class="flex items-start">
+<svg class="h-5 w-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+</svg>
+<span class="text-gray-300">API access</span>
+</li>
+</ul>
+<button id="gold-plan-btn" data-plan="gold" data-checkout-id="STRIPE_GOLD_CHECKOUT_ID" class="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn">
+  Subscribe
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Help/FAQ section - initially hidden -->
+<section id="help-section" class="hidden space-y-6">
+<div class="bg-gray-800 p-6 rounded-lg border border-gray-600 shadow-sm">
+<h2 class="text-2xl font-semibold mb-6 text-white">Help & FAQs</h2>
+
+<div class="space-y-4 mb-8">
+<div class="border-b border-gray-600 pb-4">
+<h3 class="text-lg font-medium mb-2 text-white">How does PIXEL LABZ work?</h3>
+<p class="text-gray-300">PIXEL LABZ uses advanced AI algorithms to generate high-quality images from text descriptions. Simply describe what you want to see, choose your preferred style and settings, and our AI will create a unique image for you.</p>
+</div>
+
+<div class="border-b border-gray-600 pb-4">
+<h3 class="text-lg font-medium mb-2 text-white">What are tokens and how do they work?</h3>
+<p class="text-gray-300">Tokens are our platform's currency for generating images. Each image generation costs one token. New users receive 10 free tokens to try the service. Additional tokens can be purchased individually or obtained through monthly subscriptions.</p>
+</div>
+
+<div class="border-b border-gray-600 pb-4">
+<h3 class="text-lg font-medium mb-2 text-white">What art styles are available?</h3>
+<p class="text-gray-300">PIXEL LABZ supports various art styles including realistic, artistic, anime, cartoon, digital art, and oil painting. Higher subscription tiers unlock additional premium styles and advanced customization options.</p>
+</div>
+
+<div class="border-b border-gray-600 pb-4">
+<h3 class="text-lg font-medium mb-2 text-white">How detailed should my descriptions be?</h3>
+<p class="text-gray-300">The more detailed your description, the better the results. Include details about subjects, settings, colors, lighting, mood, and composition. Example: "A serene mountain lake at sunset with purple and orange sky, snow-capped peaks reflected in still water, photorealistic style."</p>
+</div>
+
+<div class="border-b border-gray-600 pb-4">
+<h3 class="text-lg font-medium mb-2 text-white">What image formats and resolutions are supported?</h3>
+<p class="text-gray-300">Images are generated in high-quality PNG format. Resolution depends on your subscription tier: Free tier gets standard resolution, Basic gets high resolution, Silver gets ultra-high resolution, and Gold gets maximum resolution with custom aspect ratios.</p>
+</div>
+
+<div>
+<h3 class="text-lg font-medium mb-2 text-white">What is the difference between subscription tiers?</h3>
+<p class="text-gray-300">The Free package includes 10 tokens and standard resolution. Basic offers 50 tokens monthly with high resolution. Silver provides 200 tokens, ultra-high resolution, and advanced styles. Gold includes 1,000 tokens, maximum resolution, premium styles, and API access.</p>
+</div>
+</div>
+
+<div class="bg-gray-700 p-4 rounded-lg shadow-sm">
+<h3 class="text-lg font-medium mb-3 text-white">Still have questions?</h3>
+<p class="text-gray-300 mb-4">Our support team is ready to help with any questions you may have about PIXEL LABZ.</p>
+<button id="contact-support-btn" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors">Contact Support</button>
+</div>
+</div>
+</section>
+
+<!-- How It Works section - initially hidden -->
+<section id="howitworks-section" class="hidden space-y-6">
+  <div class="diagram-container">
+    <h1 class="title">How It Works</h1>
+    <div class="flow-grid">
+      <!-- Step 1: User Input -->
+      <div class="step-box step-1">
+        <div class="step-number">1</div>
+        <div class="step-icon">✍️</div>
+        <div class="step-title">User Enters Description & Clicks "Generate"</div>
+        <div class="step-description">User enters text description in Pixel Labz app and clicks the Generate button</div>
+      </div>
+      <!-- Step 2: Poe API Request -->
+      <div class="step-box step-2">
+        <div class="step-number">2</div>
+        <div class="step-icon">🚀</div>
+        <div class="step-title">Poe API Request</div>
+        <div class="step-description">App sends message to @GPT-Image-1 or @FLUX-pro-1.1 via Poe Embed API</div>
+      </div>
+      <!-- Step 3: AI Processing -->
+      <div class="step-box step-3">
+        <div class="step-number">3</div>
+        <div class="step-icon">🧠</div>
+        <div class="step-title">AI Image Processing</div>
+        <div class="step-description">Advanced AI models process the text prompt and generate image</div>
+      </div>
+      <!-- Step 4: Style Application -->
+      <div class="step-box step-4">
+        <div class="step-number">4</div>
+        <div class="step-icon">🎨</div>
+        <div class="step-title">Style & Quality Application</div>
+        <div class="step-description">AI applies selected art style, aspect ratio, and quality settings</div>
+      </div>
+      
+      <!-- PIXEL LABZ Center Text -->
+      <div class="pixel-center">
+        <div class="particles" id="particles"></div>
+        <div class="pixel-text" id="pixelText">PIXEL LABZ</div>
+      </div>
+      
+      <!-- Step 5: Image Generation -->
+      <div class="step-box step-5">
+        <div class="step-number">5</div>
+        <div class="step-icon">🖼️</div>
+        <div class="step-title">Image Generation</div>
+        <div class="step-description">High-quality image is generated based on all parameters</div>
+      </div>
+      <!-- Step 6: Response Processing -->
+      <div class="step-box step-6">
+        <div class="step-number">6</div>
+        <div class="step-icon">📤</div>
+        <div class="step-title">Response Processing</div>
+        <div class="step-description">Generated image is processed and prepared for delivery</div>
+      </div>
+      <!-- Step 7: API Response -->
+      <div class="step-box step-7">
+        <div class="step-number">7</div>
+        <div class="step-icon">📨</div>
+        <div class="step-title">Poe API Response</div>
+        <div class="step-description">Image attachment is delivered back to the app via Poe response</div>
+      </div>
+      <!-- Step 8: Final Display -->
+      <div class="step-box step-8">
+        <div class="step-number">8</div>
+        <div class="step-icon">🎯</div>
+        <div class="step-title">Display & Download</div>
+        <div class="step-description">User views and downloads the completed image in the app</div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+</div>
+
+<script>
+// Initialize variables
+let generationCount = 0;
+let hasRated = false;
+let processingTimer = null;
+let processingStartTime = 0;
+
+// Firebase initialization
+let firebase_app = null;
+let auth = null;
+let db = null;
+let storage = null;
+let provider = null;
+let currentUser = null;
+const owners = ["dawud46meo@gmail.com"]; // List of owner emails
+let userIsOwner = false;
+
+// Start processing timer
+function startProcessingTimer() {
+  processingStartTime = Date.now();
+  const processingCounter = document.getElementById('processing-counter');
+  
+  processingTimer = setInterval(() => {
+    const elapsed = (Date.now() - processingStartTime) / 1000;
+    if (processingCounter) {
+      processingCounter.textContent = `processing | ${elapsed.toFixed(1)}/30s`;
+    }
+  }, 100);
+}
+
+// Stop processing timer
+function stopProcessingTimer() {
+  if (processingTimer) {
+    clearInterval(processingTimer);
+    processingTimer = null;
+  }
+}
+
+// Log to the AI logs area
+function logToUI(message, type = 'info') {
+  try {
+    const logsContent = document.getElementById('logs-content');
+    if (!logsContent) return;
+    
+    // Get current timestamp
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString();
+    
+    // Create log entry
+    const logLine = document.createElement('div');
+    logLine.className = 'log-line';
+    
+    // Time
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'log-time';
+    timeSpan.textContent = `[${timeStr}]`;
+    logLine.appendChild(timeSpan);
+    
+    // Message with appropriate class
+    const msgSpan = document.createElement('span');
+    msgSpan.className = `log-${type}`;
+    msgSpan.textContent = message;
+    logLine.appendChild(msgSpan);
+    
+    // Add to logs
+    logsContent.appendChild(logLine);
+    
+    // Scroll to bottom
+    logsContent.scrollTop = logsContent.scrollHeight;
+  } catch (e) {
+    console.error("Error writing to log UI:", e);
+  }
+}
+
+// Initialize Firebase
+function initFirebase() {
+  try {
+    if (firebase_app) {
+      console.log("Firebase already initialized");
+      return;
+    }
+    
+    console.log("Initializing Firebase...");
+    
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyA4ZLcY1mS9w4xpMnTGbuU_Ctd9f7fiUeQ",
+      authDomain: "dream-labs3.firebaseapp.com",
+      projectId: "dream-labs3",
+      storageBucket: "dream-labs3.appspot.com",
+      messagingSenderId: "190648590943",
+      appId: "1:190648590943:web:230062095e51e3b4d271ea",
+      measurementId: "G-X8Z8DQZLH9"
+    };
+    
+    // Initialize Firebase
+    firebase_app = firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    storage = firebase.storage();
+    
+    // Initialize Google Auth Provider
+    provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({
+      prompt: 'select_account'
+    });
+    
+    // Set up authentication state change listener
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        // User is signed in
+        currentUser = user;
+        userIsOwner = owners.includes(user.email);
+        updateUIForAuthState();
+        
+        // Try to create/update user document
+        createOrUpdateUserDocument(user);
+        
+        // Check if user has already rated
+        checkIfUserHasRated().then(rated => {
+          hasRated = rated;
+        });
+      } else {
+        // User is signed out
+        currentUser = null;
+        userIsOwner = false;
+        updateUIForAuthState();
+      }
+    });
+    
+    console.log("Firebase initialized successfully");
+  } catch (e) {
+    console.error("Error initializing Firebase:", e);
+    showAlert("Firebase Error", "There was an error connecting to Firebase. Please try again later.");
+  }
+}
+
+// Create or update user document
+async function createOrUpdateUserDocument(user) {
+  try {
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Firestore timeout')), 10000)
+    );
+    
+    const docRef = db.collection('users').doc(user.uid);
+    
+    try {
+      const doc = await Promise.race([docRef.get(), timeout]);
+      
+      if (!doc.exists) {
+        console.log("Creating new user document...");
+        const userData = {
+          email: user.email,
+          displayName: user.displayName || '',
+          fullName: user.displayName || '',
+          photoURL: user.photoURL || '',
+          tokens: 10,
+          subscription: 'free',
+          images: [],
+          hasRated: false,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        try {
+          await Promise.race([docRef.set(userData), timeout]);
+          console.log("User document created successfully!");
+        } catch (error) {
+          console.error("Error creating user document:", error);
+          showAlert("Profile Setup Issue", "Your account is connected, but we had trouble saving your profile data due to possible connection issues. Some features may be limited.");
+        }
+      } else {
+        console.log("User document already exists.");
+      }
+    } catch (error) {
+      console.error("Error checking user document:", error);
+      showAlert("Profile Setup Issue", "You're signed in, but we couldn't save your profile data due to possible connection issues. Some features may be limited.");
+    }
+  } catch (error) {
+    console.error("Error in createOrUpdateUserDocument:", error);
+    showAlert("Profile Setup Issue", "You're signed in, but we couldn't save your profile data. Some features may be limited until you're back online.");
+  }
+}
+
+// Google sign-in function
+async function signInWithGoogle() {
+  try {
+    const googleSigninText = document.getElementById('google-signin-text');
+    const googleSigninLoading = document.getElementById('google-signin-loading');
+    const googleSignupText = document.getElementById('google-signup-text');
+    const googleSignupLoading = document.getElementById('google-signup-loading');
+    
+    if (googleSigninText) googleSigninText.textContent = "Connecting...";
+    if (googleSigninLoading) googleSigninLoading.classList.remove('hidden');
+    if (googleSignupText) googleSignupText.textContent = "Connecting...";
+    if (googleSignupLoading) googleSignupLoading.classList.remove('hidden');
+    
+    if (!firebase_app) {
+      initFirebase();
+    }
+    
+    if (!auth || !provider) {
+      throw new Error("Authentication services are not available");
+    }
+
+    const authTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Authentication timeout')), 30000)
+    );
+    
+    const authResult = await Promise.race([
+      auth.signInWithPopup(provider),
+      authTimeout
+    ]);
+    
+    const user = authResult.user;
+    currentUser = user;
+    userIsOwner = owners.includes(user.email);
+    
+    hideAuthModals();
+    showAlert("Sign-in Successful", `Welcome, ${user.displayName || user.email}!`);
+    updateUIForAuthState();
+    
+    return user;
+  } catch (error) {
+    console.error("Google Sign-In Error:", error);
+    
+    const googleSigninText = document.getElementById('google-signin-text');
+    const googleSigninLoading = document.getElementById('google-signin-loading');
+    const googleSignupText = document.getElementById('google-signup-text');
+    const googleSignupLoading = document.getElementById('google-signup-loading');
+    
+    if (googleSigninText) googleSigninText.textContent = "Sign in with Google";
+    if (googleSigninLoading) googleSigninLoading.classList.add('hidden');
+    if (googleSignupText) googleSignupText.textContent = "Sign up with Google";
+    if (googleSignupLoading) googleSignupLoading.classList.add('hidden');
+    
+    let errorMessage = "Failed to sign in with Google";
+    if (error.code === 'auth/popup-closed-by-user') {
+      errorMessage = "Sign-in was cancelled";
+    } else if (error.code === 'auth/popup-blocked') {
+      errorMessage = "Pop-up was blocked by your browser. Please allow pop-ups for this site";
+    } else if (error.code === 'auth/network-request-failed') {
+      errorMessage = "Network error. Please check your internet connection";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    showAlert("Sign-in Error", errorMessage);
+    throw error;
+  }
+}
+
+// Regular login function
+async function loginUser(email, password) {
+  try {
+    if (!auth) {
+      throw new Error("Authentication not initialized");
+    }
+    
+    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+    const user = userCredential.user;
+    
+    currentUser = user;
+    userIsOwner = owners.includes(user.email);
+    
+    hideAuthModals();
+    updateUIForAuthState();
+    
+    return user;
+  } catch (error) {
+    let errorMessage = "Failed to login";
+    
+    if (error.code === 'auth/user-not-found') {
+      errorMessage = "No account found with this email";
+    } else if (error.code === 'auth/wrong-password') {
+      errorMessage = "Incorrect password";
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = "Invalid email format";
+    } else if (error.code === 'auth/user-disabled') {
+      errorMessage = "This account has been disabled";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    throw new Error(errorMessage);
+  }
+}
+
+// Sign up function
+async function createUser(email, password, confirmPassword, fullName, profilePicture) {
+  if (password.length < 6) {
+    return Promise.reject(new Error('Password must be at least 6 characters'));
+  }
+  
+  if (password !== confirmPassword) {
+    return Promise.reject(new Error('Passwords do not match'));
+  }
+  
+  try {
+    if (!auth) {
+      throw new Error("Authentication not initialized");
+    }
+    
+    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    const user = userCredential.user;
+    
+    userIsOwner = owners.includes(user.email);
+    currentUser = user;
+    
+    let photoURL = '';
+    
+    if (profilePicture) {
+      try {
+        photoURL = await uploadProfilePicture(profilePicture, user.uid);
+      } catch (error) {
+        console.error("Error uploading profile picture:", error);
+      }
+    }
+    
+    await user.updateProfile({
+      displayName: fullName,
+      photoURL: photoURL
+    });
+    
+    if (db) {
+      try {
+        await db.collection('users').doc(user.uid).set({
+          email: user.email,
+          fullName: fullName,
+          displayName: fullName,
+          photoURL: photoURL,
+          tokens: 10,
+          subscription: 'free',
+          images: [],
+          hasRated: false,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (error) {
+        console.error("Error saving user data to Firestore:", error);
+      }
+    }
+    
+    hideAuthModals();
+    updateUIForAuthState();
+    
+    return user;
+  } catch (error) {
+    let errorMessage = "Failed to create account";
+    
+    if (error.code === 'auth/email-already-in-use') {
+      errorMessage = "Email is already in use";
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = "Invalid email format";
+    } else if (error.code === 'auth/weak-password') {
+      errorMessage = "Password is too weak";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    throw new Error(errorMessage);
+  }
+}
+
+// Upload profile picture to Firebase Storage
+async function uploadProfilePicture(file, userId) {
+  try {
+    if (!storage || !file) {
+      throw new Error("Storage not initialized or no file provided");
+    }
+    
+    const storageRef = storage.ref();
+    const profilePicRef = storageRef.child(`profile_pictures/${userId}_${Date.now()}`);
+    
+    const snapshot = await profilePicRef.put(file);
+    const downloadURL = await snapshot.ref.getDownloadURL();
+    return downloadURL;
+  } catch (error) {
+    console.error("Error uploading profile picture:", error);
+    throw error;
+  }
+}
+
+// Log out function
+function logoutUser() {
+  if (!auth) {
+    console.error("Authentication not initialized");
+    return;
+  }
+  
+  auth.signOut().then(() => {
+    currentUser = null;
+    userIsOwner = false;
+    updateUIForAuthState();
+    showAlert("Logged Out", "You have been successfully logged out.");
+  }).catch(error => {
+    console.error("Error signing out:", error);
+    showAlert("Logout Error", "Failed to sign out. Please try again.");
+  });
+}
+
+// Send password reset email
+async function sendPasswordResetEmail(email) {
+  try {
+    if (!auth) {
+      throw new Error("Authentication not initialized");
+    }
+    
+    await auth.sendPasswordResetEmail(email);
+    return true;
+  } catch (error) {
+    let errorMessage = "Failed to send password reset email";
+    
+    if (error.code === 'auth/user-not-found') {
+      errorMessage = "No account found with this email";
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = "Invalid email format";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    throw new Error(errorMessage);
+  }
+}
+
+// Update user profile
+async function updateUserProfile(fullName, profilePicture) {
+  try {
+    if (!auth || !currentUser) {
+      throw new Error("Not authenticated");
+    }
+    
+    let photoURL = currentUser.photoURL;
+    
+    if (profilePicture) {
+      try {
+        photoURL = await uploadProfilePicture(profilePicture, currentUser.uid);
+      } catch (error) {
+        console.error("Error uploading profile picture:", error);
+        throw error;
+      }
+    }
+    
+    await currentUser.updateProfile({
+      displayName: fullName,
+      photoURL: photoURL
+    });
+    
+    if (db) {
+      try {
+        await db.collection('users').doc(currentUser.uid).update({
+          displayName: fullName,
+          fullName: fullName,
+          photoURL: photoURL
+        });
+      } catch (error) {
+        console.error("Error updating Firestore document:", error);
+      }
+    }
+    
+    updateProfileAvatar();
+    
+    return true;
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    throw error;
+  }
+}
+
+// Change password function
+async function changeUserPassword(currentPassword, newPassword) {
+  try {
+    if (!auth || !currentUser) {
+      throw new Error("Not authenticated");
+    }
+    
+    const credential = firebase.auth.EmailAuthProvider.credential(
+      currentUser.email,
+      currentPassword
+    );
+    
+    await currentUser.reauthenticateWithCredential(credential);
+    await currentUser.updatePassword(newPassword);
+    
+    return true;
+  } catch (error) {
+    let errorMessage = "Failed to change password";
+    
+    if (error.code === 'auth/wrong-password') {
+      errorMessage = "Current password is incorrect";
+    } else if (error.code === 'auth/weak-password') {
+      errorMessage = "New password is too weak";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    throw new Error(errorMessage);
+  }
+}
+
+// Check if user has enough tokens
+function hasEnoughTokens() {
+  if (userIsOwner) return true;
+  
+  const tokenCountElement = document.getElementById('token-count');
+  if (!tokenCountElement) return false;
+  
+  const tokenCount = parseInt(tokenCountElement.textContent);
+  return !isNaN(tokenCount) && tokenCount > 0;
+}
+
+// Check if user has already rated
+function checkIfUserHasRated() {
+  try {
+    if (!currentUser || !db) return false;
+    
+    return new Promise(async (resolve) => {
+      try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          resolve(userData.hasRated === true);
+        } else {
+          resolve(false);
+        }
+      } catch (error) {
+        console.error("Error checking if user has rated:", error);
+        resolve(false);
+      }
+    });
+  } catch (e) {
+    console.error("Error in checkIfUserHasRated:", e);
+    return false;
+  }
+}
+
+// Save rating to Firebase
+async function saveRating(rating, feedback) {
+  try {
+    if (!currentUser || !db) return;
+    
+    const feedbackData = {
+      userId: currentUser.uid,
+      userEmail: currentUser.email,
+      rating: rating,
+      feedback: feedback || "",
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    await db.collection('feedback').add(feedbackData);
+    
+    await db.collection('users').doc(currentUser.uid).update({
+      hasRated: true
+    });
+    
+    console.log("Rating saved successfully");
+    hasRated = true;
+    
+  } catch (error) {
+    console.error("Error saving rating:", error);
+  }
+}
+
+// Generate image using Poe Embed API
+async function generateImage() {
+  try {
+    logToUI("Starting AI image generation...", "info");
+    startProcessingTimer();
+    
+    // Get user input
+    const description = document.getElementById('description').value.trim();
+    if (!description) {
+      throw new Error("Please enter a description for your image");
+    }
+    
+    // Get settings
+    const artStyle = document.getElementById('art-style').value;
+    const aspectRatio = document.getElementById('aspect-ratio').value;
+    const quality = document.getElementById('quality-level').value;
+    
+    // Build prompt with style and settings
+    let prompt = description;
+    
+    // Add style information
+    if (artStyle !== 'realistic') {
+      prompt += `, ${artStyle} style`;
+    }
+    
+    // Add quality information
+    if (quality === 'high') {
+      prompt += ', high quality, detailed';
+    } else if (quality === 'low') {
+      prompt += ', quick render';
+    }
+    
+    // Add aspect ratio if not square
+    let aspectParam = '';
+    if (aspectRatio !== '1:1') {
+      aspectParam = ` --aspect ${aspectRatio}`;
+    }
+    
+    // Final prompt for the bot
+    const finalPrompt = `@GPT-Image-1 ${prompt}${aspectParam}`;
+    
+    logToUI(`Sending prompt: "${finalPrompt}"`, "info");
+    
+    // Register handler for the response
+    window.Poe.registerHandler("image-generation-handler", (result, context) => {
+      handleImageGenerationResponse(result, context);
+    });
+    
+    // Send message to Poe
+    await window.Poe.sendUserMessage(finalPrompt, {
+      handler: "image-generation-handler",
+      stream: false,
+      openChat: false,
+      handlerContext: { 
+        prompt: description,
+        style: artStyle,
+        aspectRatio: aspectRatio,
+        quality: quality
+      }
+    });
+    
+  } catch (error) {
+    console.error("Error generating image:", error);
+    logToUI(`Error: ${error.message}`, "error");
+    stopProcessingTimer();
+    resetGenerateButton();
+    showAlert('Generation Error', `Error generating image: ${error.message}`);
+  }
+}
+
+// Handle image generation response from Poe
+function handleImageGenerationResponse(result, context) {
+  try {
+    logToUI("Processing image generation response...", "info");
+    
+    const msg = result.responses[0];
+    
+    if (msg.status === "error") {
+      logToUI(`Error: ${msg.statusText}`, "error");
+      stopProcessingTimer();
+      resetGenerateButton();
+      showAlert('Generation Error', `Error: ${msg.statusText}`);
+      return;
+    } else if (msg.status === "incomplete") {
+      logToUI("Waiting for image generation to complete...", "info");
+      return;
+    } else if (msg.status === "complete") {
+      stopProcessingTimer();
+      
+      if (msg.attachments && msg.attachments.length > 0) {
+        const imageAttachment = msg.attachments[0];
+        logToUI("✅ Image generated successfully!", "success");
+        
+        // Display the generated image
+        displayGeneratedImage(imageAttachment.url, context);
+        
+        // Record the generation
+        recordImageGeneration(context);
+        
+      } else {
+        logToUI("No image was generated", "error");
+        resetGenerateButton();
+        showAlert('Generation Error', 'No image was generated. Please try again.');
+      }
+    }
+  } catch (error) {
+    console.error("Error handling image response:", error);
+    logToUI(`Error processing response: ${error.message}`, "error");
+    stopProcessingTimer();
+    resetGenerateButton();
+    showAlert('Processing Error', `Error processing response: ${error.message}`);
+  }
+}
+
+// Display the generated image
+function displayGeneratedImage(imageUrl, context) {
+  try {
+    // Update UI states
+    const initialState = document.getElementById('initial-state');
+    const loadingState = document.getElementById('loading-state');
+    const imageContainer = document.getElementById('image-container');
+    const generatedImage = document.getElementById('generated-image');
+    const downloadOptions = document.getElementById('download-options');
+    
+    if (initialState) initialState.classList.add('hidden');
+    if (loadingState) loadingState.classList.add('hidden');
+    if (imageContainer) imageContainer.classList.remove('hidden');
+    if (downloadOptions) downloadOptions.classList.remove('hidden');
+    
+    // Set the image source
+    if (generatedImage) {
+      generatedImage.src = imageUrl;
+      generatedImage.alt = `Generated image: ${context.prompt}`;
+      
+      // Store image URL for download
+      generatedImage.dataset.imageUrl = imageUrl;
+      generatedImage.dataset.context = JSON.stringify(context);
+    }
+    
+    resetGenerateButton();
+    
+    logToUI("Image displayed successfully", "success");
+    
+    // Increment generation count for rating prompt
+    generationCount++;
+    if (generationCount >= 3 && !hasRated) {
+      setTimeout(() => showRatingModal(), 2000);
+    }
+    
+  } catch (error) {
+    console.error("Error displaying image:", error);
+    logToUI(`Error displaying image: ${error.message}`, "error");
+    resetGenerateButton();
+  }
+}
+
+// Record image generation in user's history
+async function recordImageGeneration(context) {
+  try {
+    if (db && currentUser && !userIsOwner) {
+      const userDocRef = db.collection('users').doc(currentUser.uid);
+      const doc = await userDocRef.get();
+      
+      if (doc.exists) {
+        const userData = doc.data();
+        
+        // Create image record
+        const imageRecord = {
+          prompt: context.prompt,
+          style: context.style,
+          aspectRatio: context.aspectRatio,
+          quality: context.quality,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        // Update user document
+        const updatedImages = userData.images ? [...userData.images, imageRecord] : [imageRecord];
+        await userDocRef.update({
+          tokens: Math.max(0, userData.tokens - 1),
+          images: updatedImages
+        });
+        
+        // Update UI
+        if (document.getElementById('token-count')) {
+          document.getElementById('token-count').textContent = Math.max(0, userData.tokens - 1);
+        }
+        if (document.getElementById('dashboard-token-count')) {
+          document.getElementById('dashboard-token-count').textContent = Math.max(0, userData.tokens - 1);
+        }
+        if (document.getElementById('images-created-count')) {
+          document.getElementById('images-created-count').textContent = updatedImages.length;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error recording image generation:", error);
+    logToUI("Failed to update user data in database", "error");
+  }
+}
+
+// Reset generate button state
+function resetGenerateButton() {
+  const generateText = document.getElementById('generate-text');
+  const generatingText = document.getElementById('generating-text');
+  
+  if (generateText) generateText.classList.remove('hidden');
+  if (generatingText) generatingText.classList.add('hidden');
+}
+
+// Show rating modal
+async function showRatingModal() {
+  if (!currentUser) return;
+  
+  hasRated = await checkIfUserHasRated();
+  if (hasRated) return;
+  
+  document.getElementById('rating-modal').style.display = 'flex';
+}
+
+// Create user initials for profile avatar
+function getInitials(name) {
+  if (!name) return '?';
+  
+  const parts = name.split(' ');
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+// Update profile avatar
+function updateProfileAvatar() {
+  const avatarContainer = document.getElementById('profile-avatar');
+  if (!avatarContainer) return;
+  
+  avatarContainer.innerHTML = '';
+  
+  if (currentUser && currentUser.photoURL) {
+    const img = document.createElement('img');
+    img.src = currentUser.photoURL;
+    img.alt = "Profile";
+    avatarContainer.appendChild(img);
+  } else if (currentUser && currentUser.displayName) {
+    const initialsDiv = document.createElement('div');
+    initialsDiv.className = 'profile-initials';
+    initialsDiv.textContent = getInitials(currentUser.displayName);
+    avatarContainer.appendChild(initialsDiv);
+  } else if (currentUser) {
+    const initialsDiv = document.createElement('div');
+    initialsDiv.className = 'profile-initials';
+    initialsDiv.textContent = currentUser.email ? currentUser.email.charAt(0).toUpperCase() : '?';
+    avatarContainer.appendChild(initialsDiv);
+  } else {
+    const initialsDiv = document.createElement('div');
+    initialsDiv.className = 'profile-initials';
+    initialsDiv.textContent = '?';
+    avatarContainer.appendChild(initialsDiv);
+  }
+}
+
+// Update UI based on auth state
+function updateUIForAuthState() {
+  try {
+    const loggedOutElements = document.getElementById('logged-out-state');
+    const loggedInElements = document.getElementById('logged-in-state');
+    const loginRequiredBanner = document.getElementById('login-required-banner');
+    
+    const dropdownUserName = document.getElementById('dropdown-user-name');
+    const dropdownUserEmail = document.getElementById('dropdown-user-email');
+    
+    if (currentUser) {
+      if (loggedOutElements) loggedOutElements.classList.add('hidden');
+      if (loggedInElements) loggedInElements.classList.remove('hidden');
+      if (loginRequiredBanner) loginRequiredBanner.classList.add('hidden');
+      
+      if (dropdownUserName) dropdownUserName.textContent = currentUser.displayName || 'User';
+      if (dropdownUserEmail) dropdownUserEmail.textContent = currentUser.email;
+      
+      updateProfileAvatar();
+      
+      if (document.getElementById('app-section').classList.contains('hidden')) {
+        showSection('app');
+      }
+      
+      try {
+        if (!db) {
+          if (document.getElementById('token-count')) {
+            document.getElementById('token-count').textContent = userIsOwner ? "∞" : "10";
+          }
+          if (document.getElementById('dashboard-token-count')) {
+            document.getElementById('dashboard-token-count').textContent = userIsOwner ? "∞" : "10";
+          }
+          return;
+        }
+        
+        const userDocRef = db.collection('users').doc(currentUser.uid);
+        userDocRef.get().then(doc => {
+          if (doc.exists) {
+            const userData = doc.data();
+            
+            if (userIsOwner) {
+              if (document.getElementById('token-count')) {
+                document.getElementById('token-count').textContent = "∞";
+              }
+              if (document.getElementById('dashboard-token-count')) {
+                document.getElementById('dashboard-token-count').textContent = "∞";
+              }
+            } else {
+              if (document.getElementById('token-count')) {
+                document.getElementById('token-count').textContent = userData.tokens;
+              }
+              if (document.getElementById('dashboard-token-count')) {
+                document.getElementById('dashboard-token-count').textContent = userData.tokens;
+              }
+            }
+            
+            if (document.getElementById('subscription-tier')) {
+              document.getElementById('subscription-tier').textContent = 
+                userData.subscription === 'free' ? 'Free Tier' :
+                userData.subscription === 'basic' ? 'Basic Plan' :
+                userData.subscription === 'silver' ? 'Silver Plan' :
+                userData.subscription === 'gold' ? 'Gold Plan' : 'Free Tier';
+            }
+            
+            if (document.getElementById('images-created-count')) {
+              document.getElementById('images-created-count').textContent = 
+                userData.images ? userData.images.length : 0;
+            }
+            
+            hasRated = userData.hasRated === true;
+            
+            const hasImages = userData.images && userData.images.length > 0;
+            const recentImagesEmpty = document.getElementById('recent-images-empty');
+            const recentImagesList = document.getElementById('recent-images-list');
+            
+            if (recentImagesEmpty && recentImagesList) {
+              recentImagesEmpty.classList.toggle('hidden', hasImages);
+              recentImagesList.classList.toggle('hidden', !hasImages);
+              
+              if (hasImages) {
+                updateRecentImagesList(userData.images);
+              }
+            }
+            
+            updateSubscriptionButtons(userData.subscription);
+          } else {
+            if (document.getElementById('token-count')) {
+              document.getElementById('token-count').textContent = userIsOwner ? "∞" : "10";
+            }
+            if (document.getElementById('dashboard-token-count')) {
+              document.getElementById('dashboard-token-count').textContent = userIsOwner ? "∞" : "10";
+            }
+            
+            updateSubscriptionButtons('free');
+          }
+        }).catch(error => {
+          console.error("Error getting user data:", error);
+          if (document.getElementById('token-count')) {
+            document.getElementById('token-count').textContent = userIsOwner ? "∞" : "10";
+          }
+          if (document.getElementById('dashboard-token-count')) {
+            document.getElementById('dashboard-token-count').textContent = userIsOwner ? "∞" : "10";
+          }
+          
+          updateSubscriptionButtons('free');
+        });
+      } catch (e) {
+        console.error("Error updating user data in UI:", e);
+      }
+    } else {
+      if (loggedOutElements) loggedOutElements.classList.remove('hidden');
+      if (loggedInElements) loggedInElements.classList.add('hidden');
+      if (loginRequiredBanner) loginRequiredBanner.classList.remove('hidden');
+      
+      if (document.getElementById('token-count')) {
+        document.getElementById('token-count').textContent = "-";
+      }
+      if (document.getElementById('dashboard-token-count')) {
+        document.getElementById('dashboard-token-count').textContent = "-";
+      }
+      
+      resetSubscriptionButtons();
+    }
+  } catch (e) {
+    console.error("Error updating UI for auth state:", e);
+  }
+}
+
+// Update subscription buttons based on current subscription
+function updateSubscriptionButtons(subscription) {
+  try {
+    const freePlanBtn = document.getElementById('free-plan-btn');
+    const basicPlanBtn = document.getElementById('basic-plan-btn');
+    const silverPlanBtn = document.getElementById('silver-plan-btn');
+    const goldPlanBtn = document.getElementById('gold-plan-btn');
+    
+    // Reset all buttons
+    if (freePlanBtn) {
+      freePlanBtn.className = "w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn";
+      freePlanBtn.textContent = "Subscribe";
+      freePlanBtn.disabled = false;
+    }
+    
+    if (basicPlanBtn) {
+      basicPlanBtn.className = "w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn";
+      basicPlanBtn.textContent = "Subscribe";
+      basicPlanBtn.disabled = false;
+    }
+    
+    if (silverPlanBtn) {
+      silverPlanBtn.className = "w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn";
+      silverPlanBtn.textContent = "Subscribe";
+      silverPlanBtn.disabled = false;
+    }
+    
+    if (goldPlanBtn) {
+      goldPlanBtn.className = "w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn";
+      goldPlanBtn.textContent = "Subscribe";
+      goldPlanBtn.disabled = false;
+    }
+    
+    // Set current subscription button
+    switch(subscription) {
+      case 'free':
+        if (freePlanBtn) {
+          freePlanBtn.className = "w-full py-2 bg-gray-500 text-white rounded-md transition-colors cursor-default";
+          freePlanBtn.textContent = "Current Plan";
+          freePlanBtn.disabled = true;
+          freePlanBtn.classList.remove('subscribe-btn');
+        }
+        break;
+      case 'basic':
+        if (basicPlanBtn) {
+          basicPlanBtn.className = "w-full py-2 bg-gray-500 text-white rounded-md transition-colors cursor-default";
+          basicPlanBtn.textContent = "Current Plan";
+          basicPlanBtn.disabled = true;
+          basicPlanBtn.classList.remove('subscribe-btn');
+        }
+        if (freePlanBtn) {
+          freePlanBtn.className = "w-full py-2 bg-gray-600 text-gray-400 rounded-md transition-colors cursor-not-allowed";
+          freePlanBtn.textContent = "Lower Tier";
+          freePlanBtn.disabled = true;
+          freePlanBtn.classList.remove('subscribe-btn');
+        }
+        break;
+      case 'silver':
+        if (silverPlanBtn) {
+          silverPlanBtn.className = "w-full py-2 bg-gray-500 text-white rounded-md transition-colors cursor-default";
+          silverPlanBtn.textContent = "Current Plan";
+          silverPlanBtn.disabled = true;
+          silverPlanBtn.classList.remove('subscribe-btn');
+        }
+        if (freePlanBtn) {
+          freePlanBtn.className = "w-full py-2 bg-gray-600 text-gray-400 rounded-md transition-colors cursor-not-allowed";
+          freePlanBtn.textContent = "Lower Tier";
+          freePlanBtn.disabled = true;
+          freePlanBtn.classList.remove('subscribe-btn');
+        }
+        if (basicPlanBtn) {
+          basicPlanBtn.className = "w-full py-2 bg-gray-600 text-gray-400 rounded-md transition-colors cursor-not-allowed";
+          basicPlanBtn.textContent = "Lower Tier";
+          basicPlanBtn.disabled = true;
+          basicPlanBtn.classList.remove('subscribe-btn');
+        }
+        break;
+      case 'gold':
+        if (goldPlanBtn) {
+          goldPlanBtn.className = "w-full py-2 bg-gray-500 text-white rounded-md transition-colors cursor-default";
+          goldPlanBtn.textContent = "Current Plan";
+          goldPlanBtn.disabled = true;
+          goldPlanBtn.classList.remove('subscribe-btn');
+        }
+        if (freePlanBtn) {
+          freePlanBtn.className = "w-full py-2 bg-gray-600 text-gray-400 rounded-md transition-colors cursor-not-allowed";
+          freePlanBtn.textContent = "Lower Tier";
+          freePlanBtn.disabled = true;
+          freePlanBtn.classList.remove('subscribe-btn');
+        }
+        if (basicPlanBtn) {
+          basicPlanBtn.className = "w-full py-2 bg-gray-600 text-gray-400 rounded-md transition-colors cursor-not-allowed";
+          basicPlanBtn.textContent = "Lower Tier";
+          basicPlanBtn.disabled = true;
+          basicPlanBtn.classList.remove('subscribe-btn');
+        }
+        if (silverPlanBtn) {
+          silverPlanBtn.className = "w-full py-2 bg-gray-600 text-gray-400 rounded-md transition-colors cursor-not-allowed";
+          silverPlanBtn.textContent = "Lower Tier";
+          silverPlanBtn.disabled = true;
+          silverPlanBtn.classList.remove('subscribe-btn');
+        }
+        break;
+    }
+  } catch (e) {
+    console.error("Error updating subscription buttons:", e);
+  }
+}
+
+// Reset subscription buttons to default state
+function resetSubscriptionButtons() {
+  try {
+    const freePlanBtn = document.getElementById('free-plan-btn');
+    const basicPlanBtn = document.getElementById('basic-plan-btn');
+    const silverPlanBtn = document.getElementById('silver-plan-btn');
+    const goldPlanBtn = document.getElementById('gold-plan-btn');
+    
+    if (freePlanBtn) {
+      freePlanBtn.className = "w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn";
+      freePlanBtn.textContent = "Subscribe";
+      freePlanBtn.disabled = false;
+    }
+    
+    if (basicPlanBtn) {
+      basicPlanBtn.className = "w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn";
+      basicPlanBtn.textContent = "Subscribe";
+      basicPlanBtn.disabled = false;
+    }
+    
+    if (silverPlanBtn) {
+      silverPlanBtn.className = "w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn";
+      silverPlanBtn.textContent = "Subscribe";
+      silverPlanBtn.disabled = false;
+    }
+    
+    if (goldPlanBtn) {
+      goldPlanBtn.className = "w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors subscribe-btn";
+      goldPlanBtn.textContent = "Subscribe";
+      goldPlanBtn.disabled = false;
+    }
+  } catch (e) {
+    console.error("Error resetting subscription buttons:", e);
+  }
+}
+
+// Update recent images list
+function updateRecentImagesList(images) {
+  try {
+    const container = document.getElementById('recent-images-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    const recentImages = images.slice(-6).reverse();
+    
+    recentImages.forEach(image => {
+      const imageCard = document.createElement('div');
+      imageCard.className = 'bg-gray-700 p-3 rounded-lg border border-gray-600 shadow-sm';
+      
+      let formattedDate = "Unknown date";
+      try {
+        if (image.timestamp) {
+          if (typeof image.timestamp === 'object' && image.timestamp.toDate) {
+            const date = image.timestamp.toDate();
+            formattedDate = date.toLocaleDateString();
+          } else if (typeof image.timestamp === 'number') {
+            const date = new Date(image.timestamp);
+            formattedDate = date.toLocaleDateString();
+          }
+        } else if (image.created) {
+          if (typeof image.created === 'object' && image.created.toDate) {
+            const date = image.created.toDate();
+            formattedDate = date.toLocaleDateString();
+          }
+        }
+      } catch (e) {
+        console.error("Error formatting date:", e);
+      }
+      
+      imageCard.innerHTML = `
+        <div class="h-32 bg-gray-600 rounded flex items-center justify-center mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div class="text-sm truncate font-medium text-white" title="${image.prompt}">${image.prompt}</div>
+        <div class="text-xs text-gray-400">${formattedDate}</div>
+        <div class="text-xs text-gray-500 mt-1">${image.style || 'realistic'} • ${image.aspectRatio || '1:1'}</div>
+      `;
+      
+      container.appendChild(imageCard);
+    });
+  } catch (e) {
+    console.error("Error updating recent images list:", e);
+  }
+}
+
+// Global navigation functions
+function showSection(sectionName) {
+  const sections = ['app', 'dashboard', 'pricing', 'help', 'howitworks'];
+  sections.forEach(section => {
+    const sectionElement = document.getElementById(`${section}-section`);
+    if (sectionElement) sectionElement.classList.add('hidden');
+    const btnElement = document.getElementById(`${section}-btn`);
+    if (btnElement) btnElement.classList.remove('bg-orange-500', 'text-white');
+    if (btnElement) btnElement.classList.add('text-gray-300', 'hover:bg-gray-700');
+    const mobileBtnElement = document.getElementById(`mobile-${section}-btn`);
+    if (mobileBtnElement) mobileBtnElement.classList.remove('bg-orange-500', 'text-white');
+    if (mobileBtnElement) mobileBtnElement.classList.add('text-gray-300', 'hover:bg-gray-700');
+  });
+  
+  const selectedSection = document.getElementById(`${sectionName}-section`);
+  if (selectedSection) selectedSection.classList.remove('hidden');
+  const selectedBtn = document.getElementById(`${sectionName}-btn`);
+  if (selectedBtn) {
+    selectedBtn.classList.remove('text-gray-300', 'hover:bg-gray-700');
+    selectedBtn.classList.add('bg-orange-500', 'text-white');
+  }
+  const selectedMobileBtn = document.getElementById(`mobile-${sectionName}-btn`);
+  if (selectedMobileBtn) {
+    selectedMobileBtn.classList.remove('text-gray-300', 'hover:bg-gray-700');
+    selectedMobileBtn.classList.add('bg-orange-500', 'text-white');
+  }
+  
+  const mobileMenu = document.getElementById('mobile-menu');
+  if (mobileMenu) mobileMenu.classList.add('hidden');
+}
+
+// Header scroll behavior
+let lastScrollTop = 0;
+const header = document.getElementById('mainHeader');
+
+window.addEventListener('scroll', function() {
+    let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    
+    if (scrollTop > lastScrollTop && scrollTop > 100) {
+        header.classList.remove('header-visible');
+        header.classList.add('header-hidden');
+    } else {
+        header.classList.remove('header-hidden');
+        header.classList.add('header-visible');
+    }
+    
+    lastScrollTop = scrollTop;
+});
+
+// Profile dropdown toggle
+function toggleProfileDropdown() {
+  const dropdown = document.getElementById('profile-dropdown-menu');
+  dropdown.classList.toggle('active');
+}
+
+// Auth modal functions
+function showLoginModal() {
+  document.getElementById('login-modal').style.display = 'flex';
+  document.getElementById('signup-modal').style.display = 'none';
+  document.getElementById('reset-password-modal').style.display = 'none';
+  document.getElementById('edit-account-modal').style.display = 'none';
+  document.getElementById('change-password-modal').style.display = 'none';
+}
+
+function showSignupModal() {
+  document.getElementById('signup-modal').style.display = 'flex';
+  document.getElementById('login-modal').style.display = 'none';
+  document.getElementById('reset-password-modal').style.display = 'none';
+  document.getElementById('edit-account-modal').style.display = 'none';
+  document.getElementById('change-password-modal').style.display = 'none';
+}
+
+function showResetPasswordModal() {
+  document.getElementById('reset-password-modal').style.display = 'flex';
+  document.getElementById('login-modal').style.display = 'none';
+  document.getElementById('signup-modal').style.display = 'none';
+  document.getElementById('edit-account-modal').style.display = 'none';
+  document.getElementById('change-password-modal').style.display = 'none';
+  
+  document.getElementById('reset-password-error').classList.add('hidden');
+  document.getElementById('reset-password-success').classList.add('hidden');
+}
+
+function showEditAccountModal() {
+  document.getElementById('edit-account-modal').style.display = 'flex';
+  document.getElementById('login-modal').style.display = 'none';
+  document.getElementById('signup-modal').style.display = 'none';
+  document.getElementById('reset-password-modal').style.display = 'none';
+  document.getElementById('change-password-modal').style.display = 'none';
+  
+  document.getElementById('edit-account-error').classList.add('hidden');
+  document.getElementById('edit-account-success').classList.add('hidden');
+  
+  if (currentUser) {
+    document.getElementById('edit-fullname').value = currentUser.displayName || '';
+    
+    const profilePicImg = document.getElementById('edit-profile-pic-img');
+    if (currentUser.photoURL) {
+      profilePicImg.src = currentUser.photoURL;
+      profilePicImg.classList.remove('hidden');
+    } else {
+      profilePicImg.classList.add('hidden');
+    }
+  }
+}
+
+function showChangePasswordModal() {
+  document.getElementById('change-password-modal').style.display = 'flex';
+  document.getElementById('edit-account-modal').style.display = 'none';
+  document.getElementById('login-modal').style.display = 'none';
+  document.getElementById('signup-modal').style.display = 'none';
+  document.getElementById('reset-password-modal').style.display = 'none';
+  
+  document.getElementById('change-password-error').classList.add('hidden');
+  document.getElementById('change-password-success').classList.add('hidden');
+  document.getElementById('change-password-form').reset();
+}
+
+function hideAuthModals() {
+  document.getElementById('login-modal').style.display = 'none';
+  document.getElementById('signup-modal').style.display = 'none';
+  document.getElementById('reset-password-modal').style.display = 'none';
+  document.getElementById('edit-account-modal').style.display = 'none';
+  document.getElementById('change-password-modal').style.display = 'none';
+}
+
+function showAlert(title, message) {
+  const alertModal = document.getElementById('alert-modal');
+  document.getElementById('alert-title').textContent = title;
+  document.getElementById('alert-message').textContent = message;
+  alertModal.style.display = 'flex';
+}
+
+function showOutOfTokensModal() {
+  document.getElementById('out-of-tokens-modal').style.display = 'flex';
+}
+
+function hideOutOfTokensModal() {
+  document.getElementById('out-of-tokens-modal').style.display = 'none';
+}
+
+// Custom select/dropdown functionality
+function initCustomSelects() {
+  document.querySelectorAll('.custom-select__trigger').forEach(trigger => {
+    trigger.addEventListener('click', function() {
+      const customSelect = this.closest('.custom-select');
+      customSelect.classList.toggle('open');
+    });
+  });
+  
+  window.addEventListener('click', function(e) {
+    const select = document.querySelector('.custom-select');
+    if (!select) return;
+    if (!select.contains(e.target)) {
+      select.classList.remove('open');
+    }
+  });
+  
+  document.querySelectorAll('.custom-option').forEach(option => {
+    option.addEventListener('click', function() {
+      if (!this.classList.contains('selected')) {
+        this.parentNode.querySelector('.custom-option.selected').classList.remove('selected');
+        this.classList.add('selected');
+        
+        const selectTrigger = this.closest('.custom-select').querySelector('.custom-select__trigger span');
+        selectTrigger.textContent = this.textContent;
+        
+        const value = this.getAttribute('data-value');
+        const wrapper = this.closest('.custom-select-wrapper');
+        const hiddenInput = wrapper ? wrapper.querySelector('input[type="hidden"]') : null;
+        if (hiddenInput) {
+          hiddenInput.value = value;
+        }
+        
+        this.closest('.custom-select').classList.remove('open');
+      }
+    });
+  });
+}
+
+// Helper function for profile picture handling
+function handleProfilePicUpload(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const profilePicImg = document.getElementById('profile-pic-img');
+    if (profilePicImg) {
+      profilePicImg.src = e.target.result;
+      profilePicImg.classList.remove('hidden');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleEditProfilePicUpload(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const editProfilePicImg = document.getElementById('edit-profile-pic-img');
+    if (editProfilePicImg) {
+      editProfilePicImg.src = e.target.result;
+      editProfilePicImg.classList.remove('hidden');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// Redirect to Stripe checkout URL
+function redirectToStripeCheckout(checkoutId) {
+  try {
+    if (!currentUser) {
+      showLoginModal();
+      return;
+    }
+    
+    // For demo purposes, show alert about subscription
+    showAlert("Subscription", "Subscription functionality would redirect to Stripe checkout in production.");
+  } catch (error) {
+    console.error("Error redirecting to Stripe:", error);
+    showAlert("Checkout Error", "There was an error redirecting to the payment page. Please try again.");
+  }
+}
+
+// Initialize app when document is ready
+document.addEventListener('DOMContentLoaded', function() {
+  console.log("Document ready");
+  
+  try {
+    initFirebase();
+  } catch (e) {
+    console.error("Firebase initialization error:", e);
+  }
+  
+  try {
+    initCustomSelects();
+  } catch (e) {
+    console.error("Error initializing custom selects:", e);
+  }
+  
+  // Initialize the star rating system
+  document.querySelectorAll('.star').forEach(star => {
+    star.addEventListener('click', function() {
+      const value = this.getAttribute('data-value');
+      
+      document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+      
+      for (let i = 1; i <= value; i++) {
+        document.querySelector(`.star[data-value="${i}"]`).classList.add('active');
+      }
+      
+      document.getElementById('rating-modal').setAttribute('data-rating', value);
+    });
+  });
+  
+  // Rating submission
+  const ratingSubmitBtn = document.getElementById('rating-submit');
+  if (ratingSubmitBtn) {
+    ratingSubmitBtn.addEventListener('click', async () => {
+      const ratingModal = document.getElementById('rating-modal');
+      const rating = parseInt(ratingModal.getAttribute('data-rating') || '0');
+      const feedback = document.getElementById('rating-feedback').value.trim();
+      
+      if (rating === 0) {
+        showAlert('Rating Required', 'Please select a rating before submitting.');
+        return;
+      }
+      
+      try {
+        await saveRating(rating, feedback);
+        ratingModal.style.display = 'none';
+        showAlert('Thank You!', 'Your feedback has been submitted successfully.');
+      } catch (error) {
+        console.error("Error saving rating:", error);
+        showAlert('Submission Error', 'There was an error submitting your rating. Please try again later.');
+      }
+    });
+  }
+  
+  // Close rating modal
+  const ratingCloseBtn = document.getElementById('rating-close');
+  if (ratingCloseBtn) {
+    ratingCloseBtn.addEventListener('click', () => {
+      document.getElementById('rating-modal').style.display = 'none';
+    });
+  }
+  
+  // AI logs toggle
+  const toggleLogsBtn = document.getElementById('toggle-logs-btn');
+  const aiLogs = document.getElementById('ai-logs');
+  
+  if (toggleLogsBtn && aiLogs) {
+    toggleLogsBtn.addEventListener('click', () => {
+      aiLogs.classList.toggle('expanded');
+      toggleLogsBtn.textContent = aiLogs.classList.contains('expanded') ? 'Collapse' : 'Expand';
+    });
+  }
+  
+  // Add all event listeners
+  
+  // Navigation buttons
+  document.getElementById('app-btn')?.addEventListener('click', () => showSection('app'));
+  document.getElementById('dashboard-btn')?.addEventListener('click', () => showSection('dashboard'));
+  document.getElementById('howitworks-btn')?.addEventListener('click', () => showSection('howitworks'));
+  document.getElementById('pricing-btn')?.addEventListener('click', () => showSection('pricing'));
+  document.getElementById('help-btn')?.addEventListener('click', () => showSection('help'));
+  
+  // Mobile navigation
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
+    const mobileMenu = document.getElementById('mobile-menu');
+    if (mobileMenu) mobileMenu.classList.toggle('hidden');
+  });
+  
+  document.getElementById('mobile-app-btn')?.addEventListener('click', () => showSection('app'));
+  document.getElementById('mobile-dashboard-btn')?.addEventListener('click', () => showSection('dashboard'));
+  document.getElementById('mobile-howitworks-btn')?.addEventListener('click', () => showSection('howitworks'));
+  document.getElementById('mobile-pricing-btn')?.addEventListener('click', () => showSection('pricing'));
+  document.getElementById('mobile-help-btn')?.addEventListener('click', () => showSection('help'));
+  
+  // Auth buttons
+  document.getElementById('login-btn')?.addEventListener('click', showLoginModal);
+  document.getElementById('signup-btn')?.addEventListener('click', showSignupModal);
+  document.getElementById('banner-login-btn')?.addEventListener('click', showLoginModal);
+  document.getElementById('banner-signup-btn')?.addEventListener('click', showSignupModal);
+  document.getElementById('go-to-signup')?.addEventListener('click', showSignupModal);
+  document.getElementById('go-to-login')?.addEventListener('click', showLoginModal);
+  
+  // Profile buttons
+  document.getElementById('profile-avatar')?.addEventListener('click', toggleProfileDropdown);
+  document.getElementById('edit-account-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showEditAccountModal();
+    toggleProfileDropdown();
+  });
+  document.getElementById('change-password-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showChangePasswordModal();
+    toggleProfileDropdown();
+  });
+  document.getElementById('view-dashboard-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showSection('dashboard');
+    toggleProfileDropdown();
+  });
+  document.getElementById('view-subscription-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showSection('pricing');
+    toggleProfileDropdown();
+  });
+  document.getElementById('help-support-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showSection('help');
+    toggleProfileDropdown();
+  });
+  document.getElementById('dropdown-logout-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    logoutUser();
+    toggleProfileDropdown();
+  });
+  
+  // Modal close buttons
+  document.getElementById('alert-close')?.addEventListener('click', () => {
+    document.getElementById('alert-modal').style.display = 'none';
+  });
+  document.getElementById('out-of-tokens-close')?.addEventListener('click', hideOutOfTokensModal);
+  document.getElementById('buy-more-tokens-btn')?.addEventListener('click', () => {
+    hideOutOfTokensModal();
+    showSection('pricing');
+  });
+  
+  // Password reset
+  document.getElementById('forgot-password-btn')?.addEventListener('click', showResetPasswordModal);
+  document.getElementById('cancel-reset-password')?.addEventListener('click', showLoginModal);
+  
+  // Edit account
+  document.getElementById('cancel-edit-account')?.addEventListener('click', hideAuthModals);
+  document.getElementById('cancel-change-password')?.addEventListener('click', hideAuthModals);
+  
+  // Profile picture uploads
+  const profilePicPreview = document.getElementById('profile-pic-preview');
+  const profilePicUpload = document.getElementById('profile-pic-upload');
+  
+  if (profilePicPreview && profilePicUpload) {
+    profilePicPreview.addEventListener('click', () => profilePicUpload.click());
+    profilePicUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleProfilePicUpload(file);
+    });
+  }
+  
+  const editProfilePicPreview = document.getElementById('edit-profile-pic-preview');
+  const editProfilePicUpload = document.getElementById('edit-profile-pic-upload');
+  
+  if (editProfilePicPreview && editProfilePicUpload) {
+    editProfilePicPreview.addEventListener('click', () => editProfilePicUpload.click());
+    editProfilePicUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleEditProfilePicUpload(file);
+    });
+  }
+  
+  // Google Sign-In buttons
+  document.getElementById('google-signin-btn')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error("Google sign in error:", error);
+      const loginError = document.getElementById('login-error');
+      if (loginError) {
+        loginError.textContent = error.message || "Failed to sign in with Google";
+        loginError.classList.remove('hidden');
+      }
+    }
+  });
+  
+  document.getElementById('google-signup-btn')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error("Google sign up error:", error);
+      const signupError = document.getElementById('signup-error');
+      if (signupError) {
+        signupError.textContent = error.message || "Failed to sign up with Google";
+        signupError.classList.remove('hidden');
+      }
+    }
+  });
+  
+  // Login form
+  document.getElementById('login-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const loginError = document.getElementById('login-error');
+    if (loginError) loginError.classList.add('hidden');
+    
+    const loginEmail = document.getElementById('login-email');
+    const loginPassword = document.getElementById('login-password');
+    
+    if (!loginEmail || !loginPassword) return;
+    
+    try {
+      await loginUser(loginEmail.value, loginPassword.value);
+    } catch (error) {
+      console.error("Login error:", error);
+      if (loginError) {
+        loginError.textContent = error.message;
+        loginError.classList.remove('hidden');
+      }
+    }
+  });
+  
+  // Sign-up form
+  document.getElementById('signup-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const signupError = document.getElementById('signup-error');
+    if (signupError) signupError.classList.add('hidden');
+    
+    const signupEmail = document.getElementById('signup-email');
+    const signupPassword = document.getElementById('signup-password');
+    const signupConfirmPassword = document.getElementById('signup-confirm-password');
+    const signupFullname = document.getElementById('signup-fullname');
+    const profilePicUpload = document.getElementById('profile-pic-upload');
+    
+    if (!signupEmail || !signupPassword || !signupConfirmPassword || !signupFullname || !profilePicUpload) return;
+    
+    try {
+      await createUser(
+        signupEmail.value,
+        signupPassword.value,
+        signupConfirmPassword.value,
+        signupFullname.value,
+        profilePicUpload.files[0] || null
+      );
+    } catch (error) {
+      console.error("Sign-up error:", error);
+      if (signupError) {
+        signupError.textContent = error.message;
+        signupError.classList.remove('hidden');
+      }
+    }
+  });
+  
+  // Reset password form
+  document.getElementById('reset-password-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const resetPasswordError = document.getElementById('reset-password-error');
+    const resetPasswordSuccess = document.getElementById('reset-password-success');
+    
+    if (resetPasswordError) resetPasswordError.classList.add('hidden');
+    if (resetPasswordSuccess) resetPasswordSuccess.classList.add('hidden');
+    
+    const resetEmail = document.getElementById('reset-email');
+    if (!resetEmail) return;
+    
+    const email = resetEmail.value;
+    
+    try {
+      await sendPasswordResetEmail(email);
+      if (resetPasswordSuccess) {
+        resetPasswordSuccess.textContent = "Password reset link sent! Please check your email.";
+        resetPasswordSuccess.classList.remove('hidden');
+      }
+      
+      setTimeout(() => {
+        showLoginModal();
+      }, 3000);
+      
+    } catch (error) {
+      console.error("Reset password error:", error);
+      if (resetPasswordError) {
+        resetPasswordError.textContent = error.message;
+        resetPasswordError.classList.remove('hidden');
+      }
+    }
+  });
+  
+  // Edit account form
+  document.getElementById('edit-account-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const editAccountError = document.getElementById('edit-account-error');
+    const editAccountSuccess = document.getElementById('edit-account-success');
+    
+    if (editAccountError) editAccountError.classList.add('hidden');
+    if (editAccountSuccess) editAccountSuccess.classList.add('hidden');
+    
+    const editFullname = document.getElementById('edit-fullname');
+    const editProfilePicUpload = document.getElementById('edit-profile-pic-upload');
+    
+    if (!editFullname || !editProfilePicUpload) return;
+    
+    const fullName = editFullname.value;
+    const profilePicture = editProfilePicUpload.files[0] || null;
+    
+    try {
+      await updateUserProfile(fullName, profilePicture);
+      if (editAccountSuccess) {
+        editAccountSuccess.textContent = "Profile updated successfully!";
+        editAccountSuccess.classList.remove('hidden');
+      }
+      
+      updateUIForAuthState();
+      
+      setTimeout(() => {
+        hideAuthModals();
+      }, 2000);
+      
+    } catch (error) {
+      console.error("Edit account error:", error);
+      if (editAccountError) {
+        editAccountError.textContent = error.message;
+        editAccountError.classList.remove('hidden');
+      }
+    }
+  });
+  
+  // Change password form
+  document.getElementById('change-password-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const changePasswordError = document.getElementById('change-password-error');
+    const changePasswordSuccess = document.getElementById('change-password-success');
+    
+    if (changePasswordError) changePasswordError.classList.add('hidden');
+    if (changePasswordSuccess) changePasswordSuccess.classList.add('hidden');
+    
+    const currentPassword = document.getElementById('current-password');
+    const newPassword = document.getElementById('new-password');
+    const confirmNewPassword = document.getElementById('confirm-new-password');
+    
+    if (!currentPassword || !newPassword || !confirmNewPassword) return;
+    
+    if (newPassword.value !== confirmNewPassword.value) {
+      if (changePasswordError) {
+        changePasswordError.textContent = "New passwords do not match";
+        changePasswordError.classList.remove('hidden');
+      }
+      return;
+    }
+    
+    if (newPassword.value.length < 6) {
+      if (changePasswordError) {
+        changePasswordError.textContent = "New password must be at least 6 characters";
+        changePasswordError.classList.remove('hidden');
+      }
+      return;
+    }
+    
+    try {
+      await changeUserPassword(currentPassword.value, newPassword.value);
+      if (changePasswordSuccess) {
+        changePasswordSuccess.textContent = "Password changed successfully!";
+        changePasswordSuccess.classList.remove('hidden');
+      }
+      
+      setTimeout(() => {
+        hideAuthModals();
+      }, 2000);
+      
+    } catch (error) {
+      console.error("Change password error:", error);
+      if (changePasswordError) {
+        changePasswordError.textContent = error.message;
+        changePasswordError.classList.remove('hidden');
+      }
+    }
+  });
+  
+  // Generate image button
+  document.getElementById('generate-btn')?.addEventListener('click', async () => {
+    if (!currentUser) {
+      showLoginModal();
+      return;
+    }
+    
+    if (!hasEnoughTokens()) {
+      showOutOfTokensModal();
+      return;
+    }
+    
+    const logsContent = document.getElementById('logs-content');
+    if (logsContent) logsContent.innerHTML = '';
+    
+    const description = document.getElementById('description');
+    if (!description || !description.value.trim()) {
+      showAlert('Missing Input', 'Please enter a description for your image');
+      return;
+    }
+    
+    // Show loading state
+    const initialState = document.getElementById('initial-state');
+    const loadingState = document.getElementById('loading-state');
+    const imageContainer = document.getElementById('image-container');
+    const generateText = document.getElementById('generate-text');
+    const generatingText = document.getElementById('generating-text');
+    
+    if (initialState) initialState.classList.add('hidden');
+    if (loadingState) loadingState.classList.remove('hidden');
+    if (imageContainer) imageContainer.classList.add('hidden');
+    if (generateText) generateText.classList.add('hidden');
+    if (generatingText) generatingText.classList.remove('hidden');
+    
+    try {
+      await generateImage();
+    } catch (error) {
+      console.error("Error generating image:", error);
+      
+      if (loadingState) loadingState.classList.add('hidden');
+      if (initialState) initialState.classList.remove('hidden');
+      if (generateText) generateText.classList.remove('hidden');
+      if (generatingText) generatingText.classList.add('hidden');
+      
+      showAlert('Generation Error', `Error generating image: ${error.message || 'Unknown error'}`);
+    }
+  });
+  
+  // Reset button
+  document.getElementById('reset-btn')?.addEventListener('click', () => {
+    const imageContainer = document.getElementById('image-container');
+    const initialState = document.getElementById('initial-state');
+    const downloadOptions = document.getElementById('download-options');
+    
+    if (imageContainer) imageContainer.classList.add('hidden');
+    if (initialState) initialState.classList.remove('hidden');
+    if (downloadOptions) downloadOptions.classList.add('hidden');
+    
+    const description = document.getElementById('description');
+    if (description) description.value = '';
+    
+    stopProcessingTimer();
+    
+    const logsContent = document.getElementById('logs-content');
+    if (logsContent) logsContent.innerHTML = '';
+    
+    logToUI("Reset for new image generation", "info");
+  });
+  
+  // Download button
+  document.getElementById('download-btn')?.addEventListener('click', () => {
+    const generatedImage = document.getElementById('generated-image');
+    if (!generatedImage || !generatedImage.src) {
+      showAlert('Download Error', 'No image available for download. Please generate an image first.');
+      return;
+    }
+    
+    try {
+      const context = JSON.parse(generatedImage.dataset.context || '{}');
+      const filename = `pixel-labz-${context.prompt?.substring(0, 20) || 'image'}.png`;
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.href = generatedImage.src;
+      link.download = filename.replace(/[^a-z0-9.-]/gi, '_');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showAlert('Download Complete', 'Your image has been downloaded successfully!');
+      logToUI("Image downloaded successfully", "success");
+    } catch (error) {
+      console.error("Download error:", error);
+      showAlert('Download Error', 'Failed to download image. Please try again.');
+    }
+  });
+  
+  // Dashboard buttons
+  document.getElementById('create-first-image')?.addEventListener('click', () => showSection('app'));
+  document.getElementById('buy-tokens-btn')?.addEventListener('click', () => showSection('pricing'));
+  document.getElementById('upgrade-btn')?.addEventListener('click', () => showSection('pricing'));
+  
+  // Subscribe buttons
+  document.querySelectorAll('.subscribe-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      if (!currentUser) {
+        showLoginModal();
+        return;
+      }
+      
+      const plan = button.getAttribute('data-plan');
+      const checkoutId = button.getAttribute('data-checkout-id');
+      
+      if (plan === 'free') {
+        showAlert("Already Free", "You already have the free plan with 10 tokens.");
+        return;
+      }
+      
+      redirectToStripeCheckout(checkoutId);
+      
+      if (db && currentUser) {
+        try {
+          const userDocRef = db.collection('users').doc(currentUser.uid);
+          userDocRef.update({
+            subscription_attempt: {
+              plan: plan,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }
+          }).catch(error => {
+            console.error("Error recording subscription attempt:", error);
+          });
+        } catch (e) {
+          console.error("Error updating subscription data:", e);
+        }
+      }
+    });
+  });
+  
+  // Contact support button
+  document.getElementById('contact-support-btn')?.addEventListener('click', () => {
+    showAlert('Contact Support', 'Please email us at support@pixellabz.com for any questions or assistance.');
+  });
+  
+  // Password strength meters
+  const signupPassword = document.getElementById('signup-password');
+  const passwordStrength = document.getElementById('password-strength');
+  
+  if (signupPassword && passwordStrength) {
+    signupPassword.addEventListener('input', () => {
+      const password = signupPassword.value;
+      
+      const hasUppercase = /[A-Z]/.test(password);
+      const hasLowercase = /[a-z]/.test(password);
+      const hasNumbers = /\d/.test(password);
+      const hasSpecialChars = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+      const isLongEnough = password.length >= 8;
+      
+      const strength = [hasUppercase, hasLowercase, hasNumbers, hasSpecialChars, isLongEnough].filter(Boolean).length;
+      
+      passwordStrength.classList.remove('strength-weak', 'strength-medium', 'strength-strong');
+      
+      if (password.length > 0) {
+        if (strength <= 2) {
+          passwordStrength.classList.add('strength-weak');
+        } else if (strength <= 4) {
+          passwordStrength.classList.add('strength-medium');
+        } else {
+          passwordStrength.classList.add('strength-strong');
+        }
+      }
+    });
+  }
+  
+  const newPasswordInput = document.getElementById('new-password');
+  const newStrengthIndicator = document.getElementById('new-password-strength');
+  
+  if (newPasswordInput && newStrengthIndicator) {
+    newPasswordInput.addEventListener('input', () => {
+      const password = newPasswordInput.value;
+      
+      const hasUppercase = /[A-Z]/.test(password);
+      const hasLowercase = /[a-z]/.test(password);
+      const hasNumbers = /\d/.test(password);
+      const hasSpecialChars = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+      const isLongEnough = password.length >= 8;
+      
+      const strength = [hasUppercase, hasLowercase, hasNumbers, hasSpecialChars, isLongEnough].filter(Boolean).length;
+      
+      newStrengthIndicator.classList.remove('strength-weak', 'strength-medium', 'strength-strong');
+      
+      if (password.length > 0) {
+        if (strength <= 2) {
+          newStrengthIndicator.classList.add('strength-weak');
+        } else if (strength <= 4) {
+          newStrengthIndicator.classList.add('strength-medium');
+        } else {
+          newStrengthIndicator.classList.add('strength-strong');
+        }
+      }
+    });
+  }
+  
+  // Click outside to close profile dropdown
+  document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('profile-dropdown-menu');
+    const avatar = document.getElementById('profile-avatar');
+    
+    if (dropdown && dropdown.classList.contains('active') && 
+        avatar && !dropdown.contains(event.target) && 
+        !avatar.contains(event.target)) {
+      dropdown.classList.remove('active');
+    }
+  });
+
+  // Add log greeting
+  logToUI("Image generator ready! Enter a description to generate an AI image.", "info");
+  logToUI("Using Poe Embed API with @GPT-Image-1 for high-quality image generation", "success");
+  
+  // Show app section by default
+  showSection('app');
+});
+
+// PIXEL LABZ Particle Effects
+document.addEventListener('DOMContentLoaded', function() {
+    const pixelText = document.getElementById('pixelText');
+    const particles = document.getElementById('particles');
+
+    if (pixelText && particles) {
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 3 + 's';
+            particle.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            particles.appendChild(particle);
+
+            setTimeout(() => {
+                particle.remove();
+            }, 5000);
+        }
+
+        pixelText.addEventListener('mouseenter', () => {
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => createParticle(), i * 100);
+            }
+        });
+
+        // Create some ambient particles
+        setInterval(createParticle, 500);
+    }
+});
+</script>
+
+<footer class="w-full text-center py-4 bg-gray-900 text-white border-t border-gray-700">
+  © 2025 Pixel Labs. All rights reserved.
+</footer>
+</body>
+</html>
